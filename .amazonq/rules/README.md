@@ -33,9 +33,10 @@ The CI/CD process framework is designed to be bare minimal and focused. It follo
 - **devops-standards/aws-database-rds.md** - Database and RDS configuration
 - **devops-standards/aws-programming-languages.md** - Programming language standards (Python-prioritized)
 
-### Workflow
+### Workflows
 
-- **cicd-workflow.md** - Main workflow file for the simple 3-phase process
+- **cicd-workflow.md** - Main workflow file for the simple 3-phase CI/CD process
+- **jira-task-workflow.md** - JIRA task management workflow for requirements generation
 
 ## How to Use
 
@@ -45,10 +46,18 @@ The CI/CD process framework is designed to be bare minimal and focused. It follo
 4. **Rule Integration**: Standards rules are automatically applied during each phase
 5. **Progress Tracking**: Simple checkbox system tracks progress
 
-## Process Flow
+## Process Flows
+
+### CI/CD Process Flow
 
 ```
 Analyze Code → Generate GitHub Actions → Deploy & Validate
+```
+
+### JIRA Task Management Flow
+
+```
+Fetch & Select JIRA Tickets → Generate Requirements Spec → Review & Iterate
 ```
 
 ## Key Features
@@ -81,6 +90,34 @@ Analyze Code → Generate GitHub Actions → Deploy & Validate
 - Test workflow execution
 - Validate CI/CD pipeline functionality
 - Monitor and report results
+
+## JIRA Task Management Process
+
+The JIRA task management workflow provides a structured approach to working with JIRA tickets and generating technical requirements.
+
+### Phase 1: Fetch & Select JIRA Tickets
+
+- Connect to JIRA using MCP integration
+- Fetch all open tickets for the user
+- Display tickets in a user-friendly format
+- Allow user to select specific ticket to work on
+- Extract detailed ticket information
+
+### Phase 2: Generate Requirements Spec
+
+- Analyze selected JIRA ticket details
+- Generate comprehensive technical requirements document
+- Use standardized requirements template
+- Include functional and non-functional requirements
+- Create acceptance criteria and technical specifications
+
+### Phase 3: Review & Iterate
+
+- Present requirements document for user review
+- Handle user feedback and requested changes
+- Iterate on requirements until user approval
+- Maintain complete change history
+- Finalize approved requirements document
 
 ## Customization
 
