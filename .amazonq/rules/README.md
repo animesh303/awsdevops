@@ -37,6 +37,7 @@ The CI/CD process framework is designed to be bare minimal and focused. It follo
 
 - **cicd-workflow.md** - Main workflow file for the simple 3-phase CI/CD process
 - **jira-task-workflow.md** - JIRA task management workflow for requirements generation
+- **generate-code-workflow.md** - Code generation workflow for implementing requirements
 
 ## How to Use
 
@@ -60,9 +61,16 @@ Analyze Code → Generate GitHub Actions → Deploy & Validate
 Fetch & Select JIRA Tickets → Generate Requirements Spec → Review & Iterate
 ```
 
+### Code Generation Flow
+
+```
+Select Requirements → Generate Code → Review & Refine
+```
+
 ### Session Continuity
 
 - **jira-phases/session-continuity.md** - Session continuity for JIRA task management
+- **code-phases/session-continuity.md** - Session continuity for code generation
 
 ## Key Features
 
@@ -129,6 +137,41 @@ The JIRA task management workflow provides a structured approach to working with
 - **Resume Capability**: Continue from where you left off in any phase
 - **Context Awareness**: Shows current status and next steps
 - **Artifact Management**: Tracks all generated documents and progress
+
+## Code Generation Process
+
+The code generation workflow provides a structured approach to implementing requirements and generating production-ready code.
+
+### Phase 1: Select Requirements
+
+- Scan for available requirements documents
+- Display requirements in user-friendly format
+- Allow user to select specific requirements to implement
+- Analyze requirements for code generation needs
+
+### Phase 2: Generate Code
+
+- Generate Terraform Infrastructure as Code
+- Generate Python Lambda code with proper structure
+- Create comprehensive unit tests using pytest
+- Apply security best practices and AWS guidelines
+- Perform code quality checks and linting
+
+### Phase 3: Review & Refine
+
+- Present generated code for user review
+- Handle user feedback and code modifications
+- Iterate on code until user approval
+- Generate implementation documentation
+- Finalize approved code implementation
+
+### Code Generation Features
+
+- **AWS Best Practices**: Follows AWS security and architectural guidelines
+- **Code Quality**: Includes linting, testing, and quality checks
+- **Security Focus**: Implements security best practices for infrastructure and code
+- **Testing**: Generates comprehensive unit tests with high coverage
+- **Documentation**: Creates implementation and deployment guides
 
 ## Customization
 
