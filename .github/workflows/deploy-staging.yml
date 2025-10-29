@@ -1,0 +1,56 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-west-2
+  TF_VERSION: 1.5.0
+  ENVIRONMENT: staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+    
+    - name: Terraform Init
+      run: terraform init
+    
+    - name: Terraform Plan
+      run: terraform plan -var="project_name=aws-sample-staging" -out=tfplan
+      env:
+        TF_VAR_key_pair_name: ${{ secrets.TF_VAR_KEY_PAIR_NAME }}
+    
+    - name: Terraform Apply
+      run: terraform apply -auto-approve tfplan
+    
+    - name: Get outputs
+      id: terraform-outputs
+      run: |
+        echo "ec2_ip=$(terraform output -raw ec2_public_ip)" >> $GITHUB_OUTPUT
+        echo "lambda_name=$(terraform output -raw lambda_function_name)" >> $GITHUB_OUTPUT
+    
+    - name: Validate deployment
+      run: |
+        echo "Validating EC2 instance..."
+        curl -f http://${{ steps.terraform-outputs.outputs.ec2_ip }} || exit 1
+        
+        echo "Validating Lambda function..."
+        aws lambda invoke --function-name ${{ steps.terraform-outputs.outputs.lambda_name }} response.json
+        cat response.json
