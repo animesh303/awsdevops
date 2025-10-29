@@ -155,8 +155,8 @@ resource "aws_lambda_function" "sample" {
   filename         = data.archive_file.lambda_zip.output_path
   function_name    = "${var.project_name}-function"
   role             = aws_iam_role.lambda_role.arn
-  handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.11"
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
 
   tags = {

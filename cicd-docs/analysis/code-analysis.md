@@ -7,7 +7,7 @@
 
 ## Programming Languages & Frameworks
 - **Terraform**: Infrastructure as Code (HCL)
-- **JavaScript (Node.js)**: Lambda function runtime (nodejs18.x)
+- **Python**: Lambda function runtime (python3.11) with type hints
 - **Shell Script**: EC2 user data initialization
 - **HTML/CSS**: Static web content
 
@@ -26,8 +26,8 @@ genai-devops/
 
 ## Dependencies & Package Management
 - **Terraform**: Version >= 1.0, AWS Provider ~> 5.0
-- **Node.js**: Runtime nodejs18.x for Lambda
-- **No package.json**: Lambda function has no external dependencies
+- **Python**: Runtime python3.11 for Lambda with type hints
+- **Requirements.txt**: Python development dependencies (pytest, black, flake8, mypy)
 
 ## AWS Resources Identified
 - **VPC & Networking**: Custom VPC, subnet, internet gateway, route table
@@ -77,8 +77,8 @@ genai-devops/
 3. Health checks
 
 ## Missing Components for CI/CD
-- Package.json for Lambda development dependencies
-- Unit tests for Lambda function
-- Environment-specific configurations
-- GitHub Actions workflows
+- ✅ Requirements.txt for Python Lambda development dependencies (Added)
+- ✅ Unit tests for Python Lambda function (Added)
+- ✅ Environment-specific configurations (Added)
+- ✅ GitHub Actions workflows (Added)
 - Terraform backend configuration for state management

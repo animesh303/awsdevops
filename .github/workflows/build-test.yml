@@ -41,25 +41,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-        node-version: '18'
+        python-version: '3.11'
     
     - name: Install dependencies
       run: |
         cd lambda
-        npm install --only=dev
-      continue-on-error: true
+        pip install -r requirements.txt
     
     - name: Lint Lambda code
       run: |
         cd lambda
-        npx eslint index.js
-      continue-on-error: true
+        black --check lambda_function.py
+        flake8 lambda_function.py
+        mypy lambda_function.py
     
     - name: Test Lambda function
       run: |
         cd lambda
-        npm test
-      continue-on-error: true
+        pytest test_lambda_function.py -v --cov=lambda_function
