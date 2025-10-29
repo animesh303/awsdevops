@@ -2,9 +2,8 @@
 
 ## Welcome Back Prompt Template
 
-When a user returns to continue work on an existing JIRA task management project, present this prompt:
+When a user returns to continue work on an existing JIRA task management project, present this prompt DIRECTLY IN CHAT:
 
-```markdown
 **Welcome back! I can see you have an existing JIRA task management project in progress.**
 
 Based on your jira-state.md, here's your current status:
@@ -22,8 +21,7 @@ B) Review the selected JIRA ticket details
 C) Review the requirements document
 D) Start over with a new JIRA ticket
 
-[Answer]:
-```
+Please select an option (A, B, C, or D):
 
 ## MANDATORY: Session Continuity Instructions
 
@@ -41,7 +39,7 @@ D) Start over with a new JIRA ticket
 6. **Show specific next steps** rather than generic descriptions
 7. **Log the continuity prompt** in audit.md with timestamp
 8. **Context Summary**: After loading artifacts, provide brief summary of what was loaded for user awareness
-9. **Asking questions**: ALWAYS ask clarification or user feedback questions by placing them in .md files. DO NOT place the multiple-choice questions in-line in the chat session.
+9. **Session Continuity Options**: ALWAYS present session continuity options directly in the chat session. DO NOT create separate files for user choices. Present the welcome back prompt with options A, B, C, D directly in chat and wait for user response.
 
 ## Session Continuity File Structure
 
