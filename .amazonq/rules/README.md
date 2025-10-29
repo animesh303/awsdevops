@@ -60,6 +60,10 @@ Analyze Code → Generate GitHub Actions → Deploy & Validate
 Fetch & Select JIRA Tickets → Generate Requirements Spec → Review & Iterate
 ```
 
+### Session Continuity
+
+- **jira-phases/session-continuity.md** - Session continuity for JIRA task management
+
 ## Key Features
 
 - **Bare Minimal**: Only 3 phases for maximum simplicity
@@ -118,6 +122,13 @@ The JIRA task management workflow provides a structured approach to working with
 - Iterate on requirements until user approval
 - Maintain complete change history
 - Finalize approved requirements document
+
+### Session Continuity Features
+
+- **Smart Context Loading**: Automatically loads relevant artifacts based on current phase
+- **Resume Capability**: Continue from where you left off in any phase
+- **Context Awareness**: Shows current status and next steps
+- **Artifact Management**: Tracks all generated documents and progress
 
 ## Customization
 

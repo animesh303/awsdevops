@@ -10,6 +10,10 @@ Always follow this workflow when user mentions working with JIRA tasks, tickets,
 
 **CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files in `.amazonq/rules/jira-phases/` directory. Do not summarize or paraphrase - use the complete content as written.
 
+## MANDATORY: Session Continuity
+
+**CRITICAL**: When detecting an existing JIRA task management project, you MUST read and follow the session continuity instructions from `jira-phases/session-continuity.md` before proceeding with any phase.
+
 ## MANDATORY: Custom Welcome Message
 
 **CRITICAL**: When starting ANY JIRA task management request, you MUST begin with this exact message:
