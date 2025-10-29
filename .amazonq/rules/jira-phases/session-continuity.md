@@ -25,7 +25,7 @@ Please select an option (A, B, C, or D):
 
 ## MANDATORY: Session Continuity Instructions
 
-1. **Always read jira-state.md first** when detecting existing JIRA project
+1. **Always read .jira-docs/jira-state.md first** when detecting existing JIRA project
 2. **Parse current status** from the workflow file to populate the prompt
 3. **MANDATORY: Load Previous Phase Artifacts** - Before resuming any phase, automatically read all relevant artifacts from previous phases:
    - **Phase 1 Artifacts**: Read ticket details, ticket selection, and extracted ticket info
@@ -37,7 +37,7 @@ Please select an option (A, B, C, or D):
    - **Phase 3**: Load requirements document + audit logs + ticket details
 5. **Adapt options** based on current phase and ticket status
 6. **Show specific next steps** rather than generic descriptions
-7. **Log the continuity prompt** in audit.md with timestamp
+7. **Log the continuity prompt** in .jira-docs/audit.md with timestamp
 8. **Context Summary**: After loading artifacts, provide brief summary of what was loaded for user awareness
 9. **Session Continuity Options**: ALWAYS present session continuity options directly in the chat session. DO NOT create separate files for user choices. Present the welcome back prompt with options A, B, C, D directly in chat and wait for user response.
 
@@ -45,24 +45,24 @@ Please select an option (A, B, C, or D):
 
 ### Required Files to Check
 
-- `jira-docs/jira-state.md` - Master state tracking
-- `jira-docs/audit.md` - Approval and decision logs
-- `jira-docs/tickets/` - Ticket information directory
-- `jira-docs/requirements/` - Requirements documents directory
+- `.jira-docs/jira-state.md` - Master state tracking
+- `.jira-docs/audit.md` - Approval and decision logs
+- `.jira-docs/tickets/` - Ticket information directory
+- `.jira-docs/requirements/` - Requirements documents directory
 
 ### Phase-Specific Artifact Loading
 
 #### Phase 1 Continuity
 
-- `jira-docs/tickets/available-tickets.md`
-- `jira-docs/tickets/ticket-selection.md`
-- `jira-docs/tickets/ticket-{TICKET-NUMBER}.md`
-- `jira-docs/tickets/ticket-{TICKET-NUMBER}-extracted.md`
+- `.jira-docs/tickets/available-tickets.md`
+- `.jira-docs/tickets/ticket-selection.md`
+- `.jira-docs/tickets/ticket-{TICKET-NUMBER}.md`
+- `.jira-docs/tickets/ticket-{TICKET-NUMBER}-extracted.md`
 
 #### Phase 2 Continuity
 
 - All Phase 1 artifacts PLUS:
-- `jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
+- `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
 - `jira-phases/requirements-template.md`
 
 #### Phase 3 Continuity

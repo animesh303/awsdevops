@@ -6,14 +6,14 @@
 
 1. **Analyze Selected JIRA Ticket**: Review the ticket details and extracted information:
 
-   - Read ticket details from `jira-docs/tickets/ticket-{TICKET-NUMBER}.md`
+   - Read ticket details from `.jira-docs/tickets/ticket-{TICKET-NUMBER}.md`
    - Review ticket description, acceptance criteria, and comments
    - Identify technical scope and complexity
    - Note any dependencies or linked tickets
 
 2. **Generate Technical Requirements Document**: Create comprehensive requirements spec:
 
-   - Create `jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
+   - Create `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
    - Follow the standard requirements template structure
    - Include all mandatory sections as defined in requirements template
    - Ensure requirements are specific, measurable, and testable
@@ -37,7 +37,7 @@
    - Validate that acceptance criteria align with JIRA ticket requirements
 
 5. **Log and Proceed**:
-   - Log requirements generation with timestamp in `jira-docs/audit.md`
+   - Log requirements generation with timestamp in `.jira-docs/audit.md`
    - Wait for explicit user approval before proceeding
    - Record approval response with timestamp
    - Update Phase 2 complete in jira-state.md

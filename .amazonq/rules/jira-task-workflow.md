@@ -71,7 +71,7 @@ When the user requests to work with JIRA tasks, follow this structured 3-phase a
 ## Directory Structure
 
 ```
-jira-docs/
+.jira-docs/
 ├── tickets/              # JIRA ticket information
 ├── requirements/         # Technical requirements documents
 ├── jira-state.md        # Master state tracking file
@@ -80,7 +80,7 @@ jira-docs/
 
 ## File Naming Convention
 
-- JIRA Ticket Info: jira-docs/tickets/ticket-{TICKET-NUMBER}.md
-- Requirements Spec: jira-docs/requirements/{TICKET-NUMBER}\_requirements.md
+- JIRA Ticket Info: .jira-docs/tickets/ticket-{TICKET-NUMBER}.md
+- Requirements Spec: .jira-docs/requirements/{TICKET-NUMBER}\_requirements.md
 
 Use kebab-case for feature names (e.g., "fetch-select-tickets", "generate-requirements", "review-iterate").

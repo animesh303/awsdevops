@@ -6,7 +6,7 @@
 
 1. **Present Requirements for Review**: Display the generated requirements document:
 
-   - Show the complete requirements document from `jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
+   - Show the complete requirements document from `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
    - Ask: "Please review the requirements document. What changes would you like to make?"
 
 2. **Handle User Feedback and Updates**: Process user feedback directly:
@@ -31,6 +31,6 @@
 
 5. **Finalize and Log**:
    - Mark requirements as final and approved
-   - Log final approval with timestamp in `jira-docs/audit.md`
+   - Log final approval with timestamp in `.jira-docs/audit.md`
    - Update Phase 3 complete in jira-state.md
    - Provide summary of final requirements document
