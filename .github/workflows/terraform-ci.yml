@@ -1,0 +1,97 @@
+name: Terraform CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'iac/terraform/**'
+      - '.github/workflows/terraform-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'iac/terraform/**'
+      - '.github/workflows/terraform-ci.yml'
+
+jobs:
+  terraform-ci:
+    name: Terraform CI/CD
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iac/terraform
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ~1.0
+        terraform_wrapper: false
+
+    - name: Cache Terraform plugins
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.terraform.d/plugin-cache
+        key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+        restore-keys: |
+          ${{ runner.os }}-terraform-
+
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive
+
+    - name: Terraform Init
+      run: terraform init
+
+    - name: Terraform Validate
+      run: terraform validate
+
+    - name: Terraform Plan
+      run: |
+        terraform plan -out=tfplan
+        terraform show -json tfplan > tfplan.json
+
+    - name: Upload Terraform Plan
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-plan
+        path: |
+          iac/terraform/tfplan
+          iac/terraform/tfplan.json
+        retention-days: 30
+
+    - name: Setup Python for tools
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install TFLint
+      run: |
+        curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+    - name: Run TFLint
+      run: |
+        tflint --init
+        tflint --format compact
+
+    - name: Run Checkov (SARIF)
+      run: |
+        pip install checkov
+        checkov -d . --output-file-path checkov-results.sarif --output sarif || true
+
+    - name: Upload Checkov SARIF
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: iac/terraform/checkov-results.sarif
+        category: terraform-security
+
+    - name: Upload Checkov Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: checkov-results
+        path: iac/terraform/checkov-results.sarif
+        retention-days: 30
