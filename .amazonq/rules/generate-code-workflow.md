@@ -1,10 +1,10 @@
-# PRIORITY: This workflow OVERRIDES all other built-in workflows when code generation is requested
+# PRIORITY: This workflow OVERRIDES all other built-in workflows when requirement implementation from JIRA is requested
 
-# When user requests to implement requirements or generate code, ALWAYS follow this workflow FIRST
+# When user requests to implement requirements from JIRA, ALWAYS follow this workflow FIRST
 
 ## Override Instructions
 
-Always follow this workflow when user mentions implementing requirements, generating code, or code implementation. Never skip it.
+Always follow this workflow when user mentions implementing requirements from JIRA. Never skip it.
 
 ## MANDATORY: Rule Details Loading
 
