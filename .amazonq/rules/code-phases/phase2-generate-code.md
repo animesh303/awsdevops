@@ -18,6 +18,7 @@
    - Scan `tests/` directory for existing test files
    - Identify which resources already exist vs. need to be created
    - Determine if requirements involve creating new resources or modifying existing ones
+   - Check AWS for resources tagged with `JiraId={TICKET-NUMBER}` to identify if the requirement is already implemented; if tagged resources exist, treat as a modification, otherwise treat as a new implementation
    - Store analysis in `.code-docs/requirements/{TICKET-NUMBER}-code-analysis.md`
 
 3. **Generate or Modify Terraform Infrastructure as Code**: Create or update Terraform configuration:
@@ -33,6 +34,20 @@
      - Update existing `{feature-name}-output.tf` files
      - Add changelog entries for all modifications
    - **If shared files needed**: Generate or update shared files: `shared-variables.tf`, `shared-outputs.tf`, `versions.tf`
+   - Tagging policy: All AWS resources managed by Terraform must include a `tags` block with at least `JiraId = {TICKET-NUMBER}` and `ManagedBy = "terraform"`. Example:
+
+     ```hcl
+     tags = {
+       JiraId    = var.jira_id        # e.g., "PROJ-1234"
+       ManagedBy = "terraform"
+     }
+     ```
+
+   - Use the `JiraId` tag to determine if resources already exist for the ticket. If resources with `JiraId={TICKET-NUMBER}` are found, update those resources; if none are found, create new resources with the tag applied
+   - After creating or modifying any Terraform files, validate the entire Terraform configuration from the root IaC directory (e.g., `iac/terraform/`):
+     - Run `terraform fmt -recursive`
+     - Run `terraform init -backend=false` (if backend not configured/needed for validation)
+     - Run `terraform validate` and ensure it succeeds; address any errors before proceeding
    - Follow AWS security best practices and naming conventions
 
 4. **Generate or Modify Python Lambda Code**: Create or update Python code:
@@ -70,7 +85,10 @@
 7. **Perform Code Quality Checks**: Ensure code quality:
 
    - Run Python linting (flake8, black, isort)
-   - Run Terraform validation (terraform fmt, validate)
+   - Run Terraform validation across the full configuration:
+     - `terraform fmt -recursive`
+     - `terraform init -backend=false` (if needed for validation)
+     - `terraform validate` must pass with no errors
    - Check for security vulnerabilities
    - Ensure code follows AWS best practices
    - Store quality reports in `.code-docs/quality-reports/`

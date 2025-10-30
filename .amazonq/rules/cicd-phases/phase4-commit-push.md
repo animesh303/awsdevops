@@ -24,10 +24,8 @@ Safely commit and push generated/updated GitHub Actions workflow files after exp
 
 3. **Stage Changes**
 
-   - Stage workflow and docs changes:
-     - `git add .github/workflows/*.yml`
-     - `git add .amazonq/rules/cicd-phases/*.md .amazonq/rules/cicd-github-workflow.md` (if changed)
-     - Include other generated artifacts as applicable (exclude build outputs and ignored files).
+   - Stage all repository changes (respects `.gitignore`):
+     - `git add -A`
 
 4. **Commit Changes with Structured Message**
 

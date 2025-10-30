@@ -1,15 +1,14 @@
 # Changelog:
 # AWS-2 - Initial static website infrastructure creation - 2025-01-27
+# AWS-2 - Enhanced tagging strategy implementation - 2025-01-27
 
 # S3 Bucket for static website hosting
 resource "aws_s3_bucket" "website_bucket" {
   bucket_prefix = "static-website-"
 
-  tags = {
-    Name        = "Static Website Bucket"
-    Environment = var.environment
-    Project     = "AWS-2"
-  }
+  tags = merge(local.s3_tags, {
+    Name = "Static Website Bucket"
+  })
 }
 
 # S3 Bucket website configuration
@@ -100,11 +99,9 @@ resource "aws_dynamodb_table" "sample_data_table" {
     enabled = true
   }
 
-  tags = {
-    Name        = "Sample Data Table"
-    Environment = var.environment
-    Project     = "AWS-2"
-  }
+  tags = merge(local.dynamodb_tags, {
+    Name = "Sample Data Table"
+  })
 }
 
 # SQS Queue
@@ -115,11 +112,9 @@ resource "aws_sqs_queue" "sample_message_queue" {
 
   kms_master_key_id = "alias/aws/sqs"
 
-  tags = {
-    Name        = "Sample Message Queue"
-    Environment = var.environment
-    Project     = "AWS-2"
-  }
+  tags = merge(local.sqs_tags, {
+    Name = "Sample Message Queue"
+  })
 }
 
 # CloudWatch Log Group for monitoring
@@ -127,9 +122,7 @@ resource "aws_cloudwatch_log_group" "website_logs" {
   name              = "/aws/s3/static-website"
   retention_in_days = 14
 
-  tags = {
-    Name        = "Static Website Logs"
-    Environment = var.environment
-    Project     = "AWS-2"
-  }
+  tags = merge(local.cloudwatch_tags, {
+    Name = "Static Website Logs"
+  })
 }
