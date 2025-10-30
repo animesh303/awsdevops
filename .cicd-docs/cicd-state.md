@@ -14,7 +14,7 @@
 - **Status**: Complete
 - **Start Time**: 2025-01-27
 - **End Time**: 2025-01-27
-- **Detected Environments**: Terraform
+- **Detected Environments**: terraform
 - **Planned Workflows**: 4
 
 ### Phase 2: Generate Workflows
@@ -23,7 +23,7 @@
 - **Start Time**: 2025-01-27
 - **End Time**: 2025-01-27
 - **Generated Files**: 4
-- **Lint/Scan Tools Run**: ["tflint", "checkov"]
+- **Lint/Scan Tools Run**: [tflint, checkov]
 - **SARIF Uploads**: 1
 
 ### Phase 3: Review & Confirm
@@ -32,17 +32,18 @@
 - **Start Time**: 2025-01-27
 - **End Time**: 2025-01-27
 - **Final Approval**: Approved
-- **Notes**: All 4 Terraform workflows approved and integrated
+- **Notes**: All 4 workflow files approved and integrated
 
 ## Session Information
 
 - **Session Start**: 2025-01-27
 - **Last Updated**: 2025-01-27
-- **User Confirmations**: 1
+- **User Confirmations**: 3
 - **Total Iterations**: 0
 
-## Detected Details
+## Generated Files
 
-- **Terraform Files**: iac/terraform/
-- **Python Files**: None detected
-- **Planned Workflows**: terraform-ci.yml, terraform-deploy-dev.yml, terraform-deploy-test.yml, terraform-deploy-prod.yml
+- .github/workflows/terraform-ci.yml
+- .github/workflows/terraform-deploy-dev.yml
+- .github/workflows/terraform-deploy-test.yml
+- .github/workflows/terraform-deploy-prod.yml

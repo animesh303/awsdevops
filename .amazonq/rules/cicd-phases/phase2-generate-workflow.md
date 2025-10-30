@@ -29,6 +29,22 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
          security-events: read
        ```
 
+   - If a workflow uses `paths` filters under `on.push`/`on.pull_request`, always include the workflow file itself to trigger on workflow edits. Example:
+
+     ```yaml
+     on:
+       push:
+         branches: [main, develop]
+         paths:
+           - "iac/terraform/**"
+           - ".github/workflows/terraform-ci.yml"
+       pull_request:
+         branches: [main]
+         paths:
+           - "iac/terraform/**"
+           - ".github/workflows/terraform-ci.yml"
+     ```
+
 2. **Python Workflow Jobs:**
    - Define separate jobs (examples below) and run them in parallel when possible:
      - `python-lint` (matrix: 3.10, 3.11, 3.12): setup + Flake8 SARIF

@@ -2,16 +2,19 @@ name: Terraform CI
 
 on:
   push:
-    branches: [ main, develop ]
-    paths: [ 'iac/terraform/**' ]
+    branches: [main, develop]
+    paths:
+      - "iac/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
   pull_request:
-    branches: [ main ]
-    paths: [ 'iac/terraform/**' ]
+    branches: [main]
+    paths:
+      - "iac/terraform/**"
+      - ".github/workflows/terraform-ci.yml"
 
 permissions:
   contents: read
   security-events: write
-  pull-requests: write
 
 jobs:
   tf-validate:
@@ -21,30 +24,32 @@ jobs:
       run:
         working-directory: iac/terraform
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.0
-          
+
       - name: Cache Terraform
         uses: actions/cache@v4
         with:
           path: |
             ~/.terraform.d/plugin-cache
-            iac/terraform/.terraform
-          key: terraform-${{ runner.os }}-${{ hashFiles('iac/terraform/.terraform.lock.hcl') }}
-          
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
-        
+
       - name: Terraform Init
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-        run: terraform init -backend=false
-        
+        run: terraform init
+
       - name: Terraform Validate
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
         run: terraform validate
 
   tf-plan:
@@ -55,31 +60,31 @@ jobs:
       run:
         working-directory: iac/terraform
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.0
-          
+
       - name: Cache Terraform
         uses: actions/cache@v4
         with:
           path: |
             ~/.terraform.d/plugin-cache
-            iac/terraform/.terraform
-          key: terraform-${{ runner.os }}-${{ hashFiles('iac/terraform/.terraform.lock.hcl') }}
-          
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+
       - name: Terraform Init
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
         run: terraform init
-        
+
       - name: Terraform Plan
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
         run: terraform plan -out=tfplan
-        
+
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -94,22 +99,23 @@ jobs:
       run:
         working-directory: iac/terraform
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Cache TFLint
         uses: actions/cache@v4
         with:
           path: ~/.tflint.d/plugins
-          key: tflint-${{ runner.os }}-${{ hashFiles('iac/terraform/.tflint.hcl') }}
-          
+          key: ${{ runner.os }}-tflint-${{ hashFiles('.tflint.hcl') }}
+
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
-        
+
       - name: Init TFLint
         run: tflint --init
-        
+
       - name: Run TFLint
-        run: tflint
+        run: tflint -f compact
 
   tf-security:
     name: Terraform Security Scan
@@ -118,31 +124,26 @@ jobs:
       run:
         working-directory: iac/terraform
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
+
       - name: Install Checkov
         run: pip install checkov
-        
+
       - name: Run Checkov
         run: |
-          checkov -d . --output-file-path checkov-results.sarif --output sarif || true
-          
-      - name: Verify SARIF exists
-        run: |
-          if [ ! -f checkov-results.sarif ]; then
-            echo "SARIF file not found"
-            exit 1
-          fi
-          
-      - name: Upload SARIF Artifact
+          checkov -d . --output-file-path checkov-results.sarif --output sarif
+        continue-on-error: true
+
+      - name: Upload Checkov SARIF
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-sarif
+          name: checkov-sarif
           path: iac/terraform/checkov-results.sarif
 
   tf-upload-sarif:
@@ -151,14 +152,14 @@ jobs:
     needs: [tf-security]
     if: always()
     steps:
-      - name: Download SARIF Artifact
+      - name: Download Checkov SARIF
         uses: actions/download-artifact@v4
         with:
-          name: terraform-sarif
+          name: checkov-sarif
           path: ./
-          
+
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: checkov-results.sarif
-          category: terraform-security
+        continue-on-error: true

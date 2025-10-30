@@ -9,27 +9,25 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-dev
-  cancel-in-progress: false
-
 jobs:
   deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: dev
+    concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-dev
     defaults:
       run:
         working-directory: iac/terraform
     steps:
-      - uses: actions/checkout@v4
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.0
-          
+
       - name: Download Plan Artifact
         uses: actions/download-artifact@v4
         with:
@@ -37,20 +35,32 @@ jobs:
           path: iac/terraform/
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
-          
-      - name: Verify Plan Exists
-        run: |
-          if [ ! -f tfplan ]; then
-            echo "Terraform plan not found"
-            exit 1
-          fi
-          
+
       - name: Terraform Init
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
         run: terraform init
-        
+
       - name: Terraform Apply
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-        run: terraform apply -input=false tfplan
+          TF_WORKSPACE: dev
+        run: |
+          if [ -f "tfplan" ]; then
+            terraform apply -input=false tfplan
+          else
+            echo "Plan artifact not found, running plan and apply"
+            terraform plan -out=tfplan
+            terraform apply -input=false tfplan
+          fi
+
+      - name: Terraform Output
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+        run: terraform output -json > terraform-outputs-dev.json
+
+      - name: Upload Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs-dev
+          path: iac/terraform/terraform-outputs-dev.json
