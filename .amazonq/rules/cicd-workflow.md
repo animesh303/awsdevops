@@ -14,7 +14,7 @@ Always follow this workflow. Never skip it.
 
 **CRITICAL**: When starting ANY CI/CD development request, you MUST begin with this exact message:
 
-"🚀 **Welcome to Accenture AWS Business Group DevOps Automation!** 🚀
+"🚀 **Welcome to AWS Business Group DevOps Automation!** 🚀
 
 I'll guide you through a streamlined 3-phase process to analyze your code and generate GitHub Actions workflows.
 

@@ -29,11 +29,11 @@ Please select an option (A, B, C, or D):
 2. **Parse current status** from the workflow file to populate the prompt
 3. **MANDATORY: Load Previous Phase Artifacts** - Before resuming any phase, automatically read all relevant artifacts from previous phases:
    - **Phase 1 Artifacts**: Read requirements selection and analysis
-   - **Phase 2 Artifacts**: Read generated code, tests, and quality reports
+   - **Phase 2 Artifacts**: Read generated code and quality reports
    - **Phase 3 Artifacts**: Read updated code, documentation, and review feedback
 4. **Smart Context Loading by Phase**:
    - **Phase 1**: Load available requirements and selection files
-   - **Phase 2**: Load requirements + generated code + tests + quality reports
+   - **Phase 2**: Load requirements + generated code + quality reports
    - **Phase 3**: Load all code files + documentation + audit logs
 5. **Adapt options** based on current phase and code status
 6. **Show specific next steps** rather than generic descriptions
@@ -50,7 +50,6 @@ Please select an option (A, B, C, or D):
 - `.code-docs/requirements/` - Requirements documents directory
 - `iac/terraform/` - All Terraform IAC code (single folder)
 - `src/lambda-*/` - Python Lambda code directories by feature
-- `tests/` - Unit tests directory by feature
 
 ### Phase-Specific Artifact Loading
 
@@ -66,7 +65,6 @@ Please select an option (A, B, C, or D):
 - All Phase 1 artifacts PLUS:
 - `iac/terraform/` (all Terraform files in single folder)
 - `src/lambda-{feature-name}/` (all Python files by feature)
-- `tests/{feature-name}/` (all test files by feature)
 - `.code-docs/quality-reports/` (quality check results)
 
 #### Phase 3 Continuity
@@ -97,7 +95,7 @@ Please select an option (A, B, C, or D):
 - Selected requirements: AWS-123 - "Create Lambda function for data processing"
 - Generated Terraform infrastructure code
 - Generated Python Lambda code
-- Unit tests and quality reports
+- Quality reports
 - Security and best practices implementation
 ```
 
@@ -108,7 +106,7 @@ Please select an option (A, B, C, or D):
 
 - Selected requirements: AWS-123 - "Create Lambda function for data processing"
 - Generated and updated code files
-- Test results and quality reports
+- Code quality reports
 - Documentation and review feedback
 - Previous iteration changes
 ```
@@ -122,7 +120,7 @@ Please select an option (A, B, C, or D):
 
 ### If Phase 2 Complete
 
-- Show generated code and test results
+- Show generated code and quality reports
 - Offer to proceed to Phase 3 or regenerate code
 
 ### If Phase 3 In Progress

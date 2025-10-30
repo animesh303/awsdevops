@@ -18,7 +18,7 @@ Always follow this workflow when user mentions working with JIRA tasks, tickets,
 
 **CRITICAL**: When starting ANY JIRA task management request, you MUST begin with this exact message:
 
-"🎯 **Welcome to Accenture AWS Business Group JIRA Task Management!** 🎯
+"🎯 **Welcome to AWS Business Group JIRA Task Management!** 🎯
 
 I'll guide you through a streamlined 3-phase process to manage your JIRA tasks and generate technical requirements.
 

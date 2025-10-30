@@ -18,7 +18,7 @@ Always follow this workflow when user mentions implementing requirements, genera
 
 **CRITICAL**: When starting ANY code generation request, you MUST begin with this exact message:
 
-"🚀 **Welcome to Accenture AWS Business Group Code Generation!** 🚀
+"🚀 **Welcome to AWS Business Group Code Generation!** 🚀
 
 I'll guide you through a streamlined 3-phase process to implement your requirements and generate production-ready code.
 

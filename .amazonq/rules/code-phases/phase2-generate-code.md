@@ -48,20 +48,7 @@
      - Add changelog entries for all modifications
    - Follow Python best practices and AWS Lambda guidelines
 
-5. **Generate or Update Unit Tests**: Create or update test suite:
-
-   - **If NEW tests needed**: Create `tests/{feature-name}/` directory
-     - Generate unit tests for Python code using pytest
-     - Generate test data and fixtures
-     - Generate test configuration files
-   - **If EXISTING tests need modification**: Update existing tests
-     - Update existing `tests/{feature-name}/` directory
-     - Modify existing test files to cover new functionality
-     - Add new test cases for modified features
-     - Add changelog entries for test modifications
-   - Ensure high test coverage
-
-6. **Apply Security Best Practices**: Implement security standards:
+5. **Apply Security Best Practices**: Implement security standards:
 
    - Use least privilege IAM policies
    - Enable encryption at rest and in transit
@@ -69,7 +56,7 @@
    - Add input validation and sanitization
    - Follow OWASP guidelines for Python code
 
-7. **Manage .gitignore File**: Ensure proper version control setup:
+6. **Manage .gitignore File**: Ensure proper version control setup:
 
    - Check if `.gitignore` file exists at project root
    - If not exists, create `.gitignore` file with appropriate entries
@@ -80,7 +67,7 @@
    - Include IDE-specific ignores: `.vscode/`, `.idea/`, `*.swp`
    - Include environment files: `.env`, `*.env`, `terraform.tfvars`
 
-8. **Perform Code Quality Checks**: Ensure code quality:
+7. **Perform Code Quality Checks**: Ensure code quality:
 
    - Run Python linting (flake8, black, isort)
    - Run Terraform validation (terraform fmt, validate)
@@ -88,7 +75,7 @@
    - Ensure code follows AWS best practices
    - Store quality reports in `.code-docs/quality-reports/`
 
-9. **Log and Proceed**:
+8. **Log and Proceed**:
    - Log code generation with timestamp in `.code-docs/audit.md`
    - Wait for explicit user approval before proceeding
    - Record approval response with timestamp
