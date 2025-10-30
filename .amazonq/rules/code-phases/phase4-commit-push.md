@@ -1,4 +1,4 @@
-# Code Generation Phase 4: Commit & Push Changes (Optional)
+# Code Generation Phase 4: Commit & Push Changes
 
 ## Purpose
 
@@ -11,11 +11,10 @@ Provide an optional, user-confirmed step to commit and push the generated/update
 
 ## Steps
 
-1. **Checkpoint: Ask to Commit & Push or Skip**
+1. **Checkpoint: Explicit User Approval (Mandatory)**
 
-   - Prompt: "Do you want me to commit and push the generated code changes now, or skip this step?"
-   - If user chooses skip: stop here with a short confirmation message.
-   - If user chooses commit: continue.
+   - Prompt: "Do you want me to commit and push the generated code changes now?"
+   - WAIT for user confirmation. Do not proceed without approval.
 
 2. **Configure Git Identity (if needed)**
 
@@ -51,6 +50,6 @@ Provide an optional, user-confirmed step to commit and push the generated/update
 
 ## Outputs
 
-- Either: Skipped commit/push per user choice, or branch pushed with committed changes.
+- Branch pushed with committed changes.
 
 

@@ -34,6 +34,23 @@
      - Update existing `{feature-name}-output.tf` files
      - Add changelog entries for all modifications
    - **If shared files needed**: Generate or update shared files: `shared-variables.tf`, `shared-outputs.tf`, `versions.tf`
+   - Backend configuration requirement: Ensure `iac/terraform/backend.tf` exists to configure Terraform state backend
+
+     - If `backend.tf` does not exist, create it with the following DUMMY configuration and request the user to update it manually to the correct backend settings for their environment:
+
+       ```hcl
+       terraform {
+         cloud {
+           organization = "aws-devops-ai"
+           workspaces {
+             name = "ws-terraform"
+           }
+         }
+       }
+       ```
+
+     - Do not proceed until the user confirms that `iac/terraform/backend.tf` is up to date and correct. Treat lack of confirmation as BLOCKING
+
    - Tagging policy: All AWS resources managed by Terraform must include a `tags` block with at least `JiraId = {TICKET-NUMBER}` and `ManagedBy = "terraform"`. Example:
 
      ```hcl
@@ -44,9 +61,9 @@
      ```
 
    - Use the `JiraId` tag to determine if resources already exist for the ticket. If resources with `JiraId={TICKET-NUMBER}` are found, update those resources; if none are found, create new resources with the tag applied
-   - After creating or modifying any Terraform files, validate the entire Terraform configuration from the root IaC directory (e.g., `iac/terraform/`):
+   - After creating or modifying any Terraform files (and after backend confirmation), validate the entire Terraform configuration from the root IaC directory (e.g., `iac/terraform/`):
      - Run `terraform fmt -recursive`
-     - Run `terraform init -backend=false` (if backend not configured/needed for validation)
+     - Run `terraform init` (use `-backend=false` only if the backend is intentionally not configured for validation)
      - Run `terraform validate` and ensure it succeeds
      - Treat validation failures as BLOCKING. Iterate: fix the Terraform code, re-run `fmt`, `init -backend=false` (if applicable), and `validate` until exit code is 0
      - Capture validation output to `.code-docs/quality-reports/terraform-validate.log` for traceability
