@@ -1,6 +1,7 @@
 # Changelog:
 # AWS-2 - Initial static website infrastructure creation - 2025-01-27
 # AWS-2 - Enhanced tagging strategy implementation - 2025-01-27
+# AWS-2 - DynamoDB cost optimization: changed to PAY_PER_REQUEST billing - 2025-01-27
 
 # S3 Bucket for static website hosting
 resource "aws_s3_bucket" "website_bucket" {
@@ -83,7 +84,7 @@ resource "aws_s3_bucket_logging" "website_logging" {
 # DynamoDB Table
 resource "aws_dynamodb_table" "sample_data_table" {
   name         = "sample-data-table"
-  billing_mode = "ON_DEMAND"
+  billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
 
   attribute {

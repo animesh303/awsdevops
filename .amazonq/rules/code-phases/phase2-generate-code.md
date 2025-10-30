@@ -47,7 +47,10 @@
    - After creating or modifying any Terraform files, validate the entire Terraform configuration from the root IaC directory (e.g., `iac/terraform/`):
      - Run `terraform fmt -recursive`
      - Run `terraform init -backend=false` (if backend not configured/needed for validation)
-     - Run `terraform validate` and ensure it succeeds; address any errors before proceeding
+     - Run `terraform validate` and ensure it succeeds
+     - Treat validation failures as BLOCKING. Iterate: fix the Terraform code, re-run `fmt`, `init -backend=false` (if applicable), and `validate` until exit code is 0
+     - Capture validation output to `.code-docs/quality-reports/terraform-validate.log` for traceability
+     - Example remediation: for DynamoDB tables, set `billing_mode` to one of `PROVISIONED` or `PAY_PER_REQUEST` (not `ON_DEMAND`)
    - Follow AWS security best practices and naming conventions
 
 4. **Generate or Modify Python Lambda Code**: Create or update Python code:
@@ -88,7 +91,8 @@
    - Run Terraform validation across the full configuration:
      - `terraform fmt -recursive`
      - `terraform init -backend=false` (if needed for validation)
-     - `terraform validate` must pass with no errors
+     - `terraform validate` must pass with no errors; Phase 2 MUST NOT complete until it does
+     - Save the validation output to `.code-docs/quality-reports/terraform-validate.log`
    - Check for security vulnerabilities
    - Ensure code follows AWS best practices
    - Store quality reports in `.code-docs/quality-reports/`
