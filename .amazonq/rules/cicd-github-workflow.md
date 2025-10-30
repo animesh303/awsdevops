@@ -67,6 +67,14 @@ Follow this 3-phase approach. For each phase, load and execute detailed steps fr
 
 ---
 
+# Phase 4: Commit & Push
+
+1. **Load all steps from `cicd-phases/phase4-commit-push.md`**
+2. Execute steps to commit generated/updated workflow files and push to the repository, only after explicit user approval.
+3. **Ask for Confirmation and WAIT**: Ask: "Ready to commit and push the workflow changes to the repository?" - DO NOT PROCEED until user confirms
+
+---
+
 # Key Workflow Requirements
 
 - Automatically detect Python and/or Terraform; generate only for detected environments.

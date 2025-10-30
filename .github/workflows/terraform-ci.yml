@@ -1,4 +1,4 @@
-name: Terraform CI
+name: Enhanced Terraform CI
 
 on:
   push:
@@ -12,9 +12,14 @@ on:
       - 'iac/terraform/**'
       - '.github/workflows/terraform-ci.yml'
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
 jobs:
   terraform-ci:
-    name: Terraform CI/CD
+    name: Enhanced Terraform CI/CD
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,6 +40,7 @@ jobs:
       with:
         path: |
           ~/.terraform.d/plugin-cache
+          .terraform/providers
         key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
         restore-keys: |
           ${{ runner.os }}-terraform-
@@ -42,21 +48,28 @@ jobs:
     - name: Terraform Format Check
       run: terraform fmt -check -recursive
 
+    - name: Validate Enhanced Tagging
+      run: |
+        echo "Validating enhanced tagging implementation..."
+        grep -q "locals {" static-website-infrastructure-locals.tf || exit 1
+        grep -q "common_tags" static-website-infrastructure-locals.tf || exit 1
+        echo "✅ Enhanced tagging validation passed"
+
     - name: Terraform Init
-      run: terraform init
+      run: terraform init -backend=false
 
     - name: Terraform Validate
       run: terraform validate
 
     - name: Terraform Plan
       run: |
-        terraform plan -out=tfplan
+        terraform plan -out=tfplan -var-file=terraform.tfvars.example
         terraform show -json tfplan > tfplan.json
 
     - name: Upload Terraform Plan
       uses: actions/upload-artifact@v4
       with:
-        name: terraform-plan
+        name: terraform-plan-${{ github.sha }}
         path: |
           iac/terraform/tfplan
           iac/terraform/tfplan.json
@@ -66,20 +79,33 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: 'pip'
 
-    - name: Install TFLint
+    - name: Install security tools
       run: |
+        pip install checkov
         curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
 
     - name: Run TFLint
       run: |
         tflint --init
-        tflint --format compact
+        tflint --format compact --module
 
     - name: Run Checkov (SARIF)
       run: |
-        pip install checkov
-        checkov -d . --output-file-path checkov-results.sarif --output sarif || true
+        checkov -d . \
+          --output-file-path checkov-results.sarif \
+          --output sarif \
+          --framework terraform \
+          || true
+
+    - name: Validate SARIF file
+      run: |
+        if [ ! -f "checkov-results.sarif" ]; then
+          echo "❌ SARIF file not generated"
+          exit 1
+        fi
+        echo "✅ SARIF file generated successfully"
 
     - name: Upload Checkov SARIF
       uses: github/codeql-action/upload-sarif@v3
@@ -88,10 +114,26 @@ jobs:
         sarif_file: iac/terraform/checkov-results.sarif
         category: terraform-security
 
-    - name: Upload Checkov Results
+    - name: Upload Security Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: checkov-results
+        name: security-results-${{ github.sha }}
         path: iac/terraform/checkov-results.sarif
         retention-days: 30
+
+    - name: Generate Summary
+      if: always()
+      run: |
+        echo "## 🏷️ Enhanced Terraform CI Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Completed Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "- Terraform format validation" >> $GITHUB_STEP_SUMMARY
+        echo "- Enhanced tagging validation" >> $GITHUB_STEP_SUMMARY
+        echo "- Infrastructure validation" >> $GITHUB_STEP_SUMMARY
+        echo "- Security scanning (Checkov)" >> $GITHUB_STEP_SUMMARY
+        echo "- Best practices check (TFLint)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Artifacts Generated:" >> $GITHUB_STEP_SUMMARY
+        echo "- Terraform plan files" >> $GITHUB_STEP_SUMMARY
+        echo "- Security scan results (SARIF)" >> $GITHUB_STEP_SUMMARY

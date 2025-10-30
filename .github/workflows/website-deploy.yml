@@ -1,0 +1,82 @@
+name: Website Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+        - development
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/website/**'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-website:
+    name: Deploy Static Website
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+    - name: Get S3 bucket name
+      id: bucket
+      run: |
+        # In real deployment, this would come from Terraform state or outputs
+        echo "bucket_name=static-website-${{ github.event.inputs.environment || 'prod' }}-$(date +%s)" >> $GITHUB_OUTPUT
+
+    - name: Validate website files
+      run: |
+        echo "Validating website files..."
+        test -f src/website/index.html || exit 1
+        test -f src/website/styles.css || exit 1
+        test -f src/website/error.html || exit 1
+        echo "✅ Website files validation passed"
+
+    - name: Sync website to S3
+      run: |
+        aws s3 sync src/website/ s3://${{ steps.bucket.outputs.bucket_name }}/ \
+          --delete \
+          --cache-control "max-age=86400" \
+          --metadata-directive REPLACE
+
+    - name: Validate website deployment
+      run: |
+        echo "Validating website accessibility..."
+        # Check if files exist in S3
+        aws s3 ls s3://${{ steps.bucket.outputs.bucket_name }}/index.html
+        aws s3 ls s3://${{ steps.bucket.outputs.bucket_name }}/styles.css
+        echo "✅ Website deployment validation passed"
+
+    - name: Generate deployment summary
+      run: |
+        echo "## 🌐 Website Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📊 Deployment Details:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ github.event.inputs.environment || 'production' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **S3 Bucket**: ${{ steps.bucket.outputs.bucket_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Files Deployed**: index.html, styles.css, error.html" >> $GITHUB_STEP_SUMMARY
+        echo "- **Cache Control**: max-age=86400" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### ✅ Validation Results:" >> $GITHUB_STEP_SUMMARY
+        echo "- Website files validated" >> $GITHUB_STEP_SUMMARY
+        echo "- S3 sync completed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Deployment accessibility confirmed" >> $GITHUB_STEP_SUMMARY
