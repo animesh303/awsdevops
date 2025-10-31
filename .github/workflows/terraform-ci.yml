@@ -43,6 +43,11 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
+      - name: Terraform Cred Validate
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+        run: env | grep TF_TOKEN
+
       - name: Terraform Init
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
