@@ -84,6 +84,17 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      - `tf-lint`: run `tflint`
      - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`
      - `tf-upload-sarif`: `needs: [tf-security]`; ensure SARIF exists, then upload via CodeQL action
+   - **Terraform Version Requirement (Mandatory):** If a workflow contains any Terraform CLI commands (`terraform init/validate/plan/apply`), the workflow MUST use Terraform version 1.1 or later. When using `hashicorp/setup-terraform@v3` or similar actions, specify `terraform_version: ~1.1` or `terraform_version: ^1.1` (minimum 1.1). Example:
+
+     ```yaml
+     - name: Setup Terraform
+       uses: hashicorp/setup-terraform@v3
+       with:
+         terraform_version: ~1.1
+     ```
+
+     **Important:** Do NOT use `~1.0` or any version below 1.1. This applies to ALL Terraform jobs (CI and CD workflows).
+
    - **AWS Credentials:** Since Terraform workflows typically interact with AWS, ALL Terraform jobs MUST include the "Configure AWS credentials via OIDC" step (see Step 1) before any `terraform init/validate/plan/apply` commands. The job must declare `permissions: id-token: write` for OIDC to work.
    - For any Terraform CLI step (`terraform init/validate/plan/apply`), set the Terraform Cloud token environment variable:
 
