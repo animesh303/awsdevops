@@ -18,6 +18,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      - `*-deploy-prod.yml` runs on successful completion of `{stack} Deploy to test`
    - Use GitHub `environments` (`dev`, `test`, `prod`) with protection rules/approvals for promotion gates
    - Prefer using CI-produced artifacts (e.g., Terraform plan, build artifacts, container images) and download them in CD workflows
+   - **Terraform Cloud Remote Backend Limitation:** When Terraform Cloud is used as the remote backend, plan output files are NOT supported. Skip plan artifact upload/download and any actions that depend on plan files in workflows using Terraform Cloud.
    - Workflows that upload SARIF results MUST declare permissions with at least:
 
      - Top-level or job-level `permissions` including `security-events: read`
@@ -79,7 +80,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
 
    - Define separate jobs and link with `needs:` where appropriate:
      - `tf-validate`: pin version/cache; run `fmt -check`, `init`, `validate`
-     - `tf-plan`: `needs: [tf-validate]`; run `plan` and upload plan artifact
+     - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
      - `tf-lint`: run `tflint`
      - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`
      - `tf-upload-sarif`: `needs: [tf-security]`; ensure SARIF exists, then upload via CodeQL action
@@ -125,7 +126,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
 
    - Ensure `iac/terraform/checkov-results.sarif` exists before upload; fail if missing
    - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions)
-   - Upload Terraform plan as artifact
+   - **Terraform Plan Artifact:** Do NOT upload Terraform plan as artifact when Terraform Cloud is used as the remote backend (plan output is not supported by Terraform Cloud). Only upload plan artifacts if using other backends (e.g., S3, local).
    - Terraform CD Workflows (separate files):
 
      - Files: `terraform-deploy-dev.yml`, `terraform-deploy-test.yml`, `terraform-deploy-prod.yml`
@@ -136,10 +137,31 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
        - Guard with `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
        - `environment: dev|test|prod` and use environment-scoped secrets/state
        - `concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-${{ github.environment }}`
-       - Download the plan artifact produced by CI and apply it; if plan artifact missing, fail early
-     - Example apply step environment variable requirement (Terraform Cloud token):
+       - **Plan Artifact Handling:** When Terraform Cloud is used as the remote backend, do NOT download plan artifacts (plan output is not supported). Run `terraform plan` and `terraform apply` directly without plan file dependencies. If using other backends (e.g., S3, local), download the plan artifact produced by CI and apply it; if plan artifact missing, fail early.
+     - Example apply step for Terraform Cloud (no plan file):
 
        ```yaml
+       - name: Terraform Plan
+         env:
+           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+         run: terraform plan
+
+       - name: Terraform Apply
+         env:
+           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+         run: terraform apply -input=false -auto-approve
+       ```
+
+       **Note:** When using Terraform Cloud remote backend, plan output files are NOT supported. Do NOT use `terraform plan -out=filename` or `terraform apply filename`. Run `terraform plan` and `terraform apply` directly without plan file dependencies. Consider using Terraform Cloud's native plan/apply workflow (sentinel policies, run triggers) for advanced approval workflows.
+
+     - Example apply step for non-Terraform Cloud backends (with plan file download):
+
+       ```yaml
+       - name: Download plan artifact
+         uses: actions/download-artifact@v4
+         with:
+           name: terraform-plan
+
        - name: Terraform Apply
          env:
            TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
@@ -155,4 +177,3 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
    - Include key triggers, environments, permissions, and artifact passing
 5. **Checkpoint:**
    - Prompt user to confirm: "Proceed to generate CI and CD workflows (dev → test → prod) with the described dependencies and protections?" Wait for confirmation.
-   - **If workflows include AWS credential configuration steps:** After presenting the preview, explicitly display: "⚠️ **REQUIRED ACTION:** You must update the IAM role ARN in all workflow files at .github/workflows/\*.yml 'Configure AWS credentials via OIDC' steps with your project's IAM role. Ensure the role trusts GitHub's OIDC provider."
