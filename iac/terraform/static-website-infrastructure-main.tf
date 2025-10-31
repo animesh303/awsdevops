@@ -1,20 +1,19 @@
 # Changelog:
 # AWS-2 - Initial static website infrastructure creation - 2025-01-27
-# AWS-2 - Enhanced tagging strategy implementation - 2025-01-27
-# AWS-2 - DynamoDB cost optimization: changed to PAY_PER_REQUEST billing - 2025-01-27
 
 # S3 Bucket for static website hosting
-resource "aws_s3_bucket" "website_bucket" {
-  bucket_prefix = "static-website-"
+resource "aws_s3_bucket" "website" {
+  bucket = var.website_bucket_name
 
-  tags = merge(local.s3_tags, {
-    Name = "Static Website Bucket"
-  })
+  tags = {
+    JiraId    = var.jira_id
+    ManagedBy = "terraform"
+    Name      = "Static Website Bucket"
+  }
 }
 
-# S3 Bucket website configuration
-resource "aws_s3_bucket_website_configuration" "website_config" {
-  bucket = aws_s3_bucket.website_bucket.id
+resource "aws_s3_bucket_website_configuration" "website" {
+  bucket = aws_s3_bucket.website.id
 
   index_document {
     suffix = "index.html"
@@ -25,17 +24,15 @@ resource "aws_s3_bucket_website_configuration" "website_config" {
   }
 }
 
-# S3 Bucket versioning
-resource "aws_s3_bucket_versioning" "website_versioning" {
-  bucket = aws_s3_bucket.website_bucket.id
+resource "aws_s3_bucket_versioning" "website" {
+  bucket = aws_s3_bucket.website.id
   versioning_configuration {
     status = "Enabled"
   }
 }
 
-# S3 Bucket server-side encryption
-resource "aws_s3_bucket_server_side_encryption_configuration" "website_encryption" {
-  bucket = aws_s3_bucket.website_bucket.id
+resource "aws_s3_bucket_server_side_encryption_configuration" "website" {
+  bucket = aws_s3_bucket.website.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -44,9 +41,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "website_encryptio
   }
 }
 
-# S3 Bucket public access block (allow public read for website)
-resource "aws_s3_bucket_public_access_block" "website_pab" {
-  bucket = aws_s3_bucket.website_bucket.id
+resource "aws_s3_bucket_public_access_block" "website" {
+  bucket = aws_s3_bucket.website.id
 
   block_public_acls       = false
   block_public_policy     = false
@@ -54,10 +50,8 @@ resource "aws_s3_bucket_public_access_block" "website_pab" {
   restrict_public_buckets = false
 }
 
-# S3 Bucket policy for public read access
-resource "aws_s3_bucket_policy" "website_policy" {
-  bucket     = aws_s3_bucket.website_bucket.id
-  depends_on = [aws_s3_bucket_public_access_block.website_pab]
+resource "aws_s3_bucket_policy" "website" {
+  bucket = aws_s3_bucket.website.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -67,23 +61,17 @@ resource "aws_s3_bucket_policy" "website_policy" {
         Effect    = "Allow"
         Principal = "*"
         Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.website_bucket.arn}/*"
+        Resource  = "${aws_s3_bucket.website.arn}/*"
       }
     ]
   })
-}
 
-# S3 Bucket logging
-resource "aws_s3_bucket_logging" "website_logging" {
-  bucket = aws_s3_bucket.website_bucket.id
-
-  target_bucket = aws_s3_bucket.website_bucket.id
-  target_prefix = "access-logs/"
+  depends_on = [aws_s3_bucket_public_access_block.website]
 }
 
 # DynamoDB Table
-resource "aws_dynamodb_table" "sample_data_table" {
-  name         = "sample-data-table"
+resource "aws_dynamodb_table" "sample_data" {
+  name         = var.dynamodb_table_name
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "id"
 
@@ -100,30 +88,36 @@ resource "aws_dynamodb_table" "sample_data_table" {
     enabled = true
   }
 
-  tags = merge(local.dynamodb_tags, {
-    Name = "Sample Data Table"
-  })
+  tags = {
+    JiraId    = var.jira_id
+    ManagedBy = "terraform"
+    Name      = "Sample Data Table"
+  }
 }
 
 # SQS Queue
-resource "aws_sqs_queue" "sample_message_queue" {
-  name                       = "sample-message-queue"
-  message_retention_seconds  = 1209600 # 14 days
+resource "aws_sqs_queue" "sample_queue" {
+  name                       = var.sqs_queue_name
+  message_retention_seconds  = 1209600
   visibility_timeout_seconds = 30
 
   kms_master_key_id = "alias/aws/sqs"
 
-  tags = merge(local.sqs_tags, {
-    Name = "Sample Message Queue"
-  })
+  tags = {
+    JiraId    = var.jira_id
+    ManagedBy = "terraform"
+    Name      = "Sample Message Queue"
+  }
 }
 
 # CloudWatch Log Group for monitoring
 resource "aws_cloudwatch_log_group" "website_logs" {
-  name              = "/aws/s3/static-website"
+  name              = "/aws/s3/${var.website_bucket_name}"
   retention_in_days = 14
 
-  tags = merge(local.cloudwatch_tags, {
-    Name = "Static Website Logs"
-  })
+  tags = {
+    JiraId    = var.jira_id
+    ManagedBy = "terraform"
+    Name      = "Website Access Logs"
+  }
 }

@@ -36,7 +36,7 @@
    - **If shared files needed**: Generate or update shared files: `shared-variables.tf`, `shared-outputs.tf`, `versions.tf`
    - Backend configuration requirement: Ensure `iac/terraform/backend.tf` exists to configure Terraform state backend
 
-     - If `backend.tf` does not exist, create it with the following DUMMY configuration and request the user to update it manually to the correct backend settings for their environment:
+     - If `backend.tf` does not exist, create it with the following DUMMY configuration and request the user to update the configurations manually to the correct backend settings for their environment:
 
        ```hcl
        terraform {

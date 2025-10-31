@@ -14,10 +14,16 @@
 
 2. **Present Generated/Modified Code for Review**: Display file links for user review:
 
-   - Present links to NEWLY GENERATED Terraform files (e.g., `{feature-name}-main.tf`, `{feature-name}-variables.tf`)
-   - Present links to MODIFIED Terraform files (if existing files were updated)
-   - Present links to NEWLY GENERATED Python Lambda code in `src/lambda-{feature-name}/`
-   - Present links to MODIFIED Python Lambda files (if existing files were updated)
+   - Present file paths as clickable links. For maximum IDE compatibility (VS Code/Cursor), use one of these formats in order of preference:
+     - **Best for Cursor**: Use `@filename.ext` syntax (e.g., `@iac/terraform/file.tf`) - this creates clickable file references that open directly in the IDE
+     - **Alternative**: Relative path from workspace root: `iac/terraform/file.tf` (most IDEs auto-detect these as clickable if the file exists)
+     - **Fallback**: Absolute path in backticks: `` `/Users/username/project/iac/terraform/file.tf` ``
+   - **Critical**: Always use actual file paths that exist in the workspace (replace placeholders like `{feature-name}` with actual names). Use the workspace root path when available to construct correct relative paths.
+   - Example: If a file was created at `iac/terraform/static-website-main.tf`, present it as `@iac/terraform/static-website-main.tf` or `iac/terraform/static-website-main.tf`, NOT as `{feature-name}-main.tf`
+   - Present links to NEWLY GENERATED Terraform files using actual paths (e.g., if created `static-website-main.tf`, present as `@iac/terraform/static-website-main.tf` or `iac/terraform/static-website-main.tf`)
+   - Present links to MODIFIED Terraform files using actual file paths (if existing files were updated)
+   - Present links to NEWLY GENERATED Python Lambda code using actual paths (e.g., `@src/lambda-function-name/app.py` or `src/lambda-function-name/app.py`)
+   - Present links to MODIFIED Python Lambda files using actual file paths (if existing files were updated)
    - Ask: "Please review the newly generated/modified code using the provided links. What changes would you like to make?"
 
 3. **Handle User Feedback and Updates**: Process user feedback directly:
@@ -29,7 +35,7 @@
 
 4. **Iterative Refinement Process**: Continue until user approval:
 
-   - Present links to ONLY the files that were updated in the current iteration
+   - Present links to ONLY the files that were updated in the current iteration, using the same file path format as in step 2 (preferably `@filename` syntax for Cursor, or relative/absolute paths)
    - Re-run linting and quality checks after modifications
    - Display updated code quality reports in chat
    - Ask: "Are there any other changes needed to the code?"

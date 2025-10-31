@@ -1,45 +1,40 @@
-# Requirements Analysis for Code Generation: AWS-2
+# AWS-2 Requirements Analysis for Code Generation
 
-## Code Generation Analysis
+## Selected Requirement
+- **Ticket**: AWS-2
+- **Feature Name**: static-website-infrastructure
 
-### AWS Services to Implement
+## AWS Services to Implement
 - **S3 Bucket**: Static website hosting with public read access
-- **DynamoDB Table**: NoSQL data storage with encryption
+- **DynamoDB Table**: NoSQL data storage with on-demand billing
 - **SQS Queue**: Message queuing with encryption
 - **CloudWatch**: Monitoring and logging
 
-### Programming Language Requirements
+## Programming Language Requirements
 - **Infrastructure**: Terraform (HCL)
-- **Website**: HTML/CSS/JavaScript (static content)
-- **No server-side code required** (static website only)
+- **Website**: HTML/CSS/JavaScript (static files)
+- **No Lambda functions required**
 
-### Infrastructure Requirements (Terraform)
+## Infrastructure Requirements (Terraform)
 - S3 bucket with website hosting configuration
-- S3 bucket policy for public read access
-- DynamoDB table with on-demand billing
-- SQS queue with standard configuration
+- DynamoDB table with encryption
+- SQS queue with encryption
+- IAM policies for least privilege access
 - CloudWatch monitoring setup
-- KMS encryption for services
 
-### Testing Requirements
-- Terraform validation and planning
+## Testing Requirements
+- Terraform validation
 - Website accessibility testing
 - Service connectivity verification
-- No unit tests required (no application code)
 
-### Generated Feature Name
-**Feature Name**: `static-website-infrastructure`
+## Security Requirements
+- Server-side encryption for all services
+- S3 bucket versioning
+- Least privilege IAM policies
+- Public access limited to website content only
 
-### Key Technical Specifications
-- **Deployment**: Single-step Terraform deployment
-- **Environment**: Single production environment
-- **Security**: Encryption at rest, least privilege IAM
-- **Monitoring**: CloudWatch logging enabled
-- **Cost Optimization**: On-demand DynamoDB billing
-
-### Implementation Scope
-- Create Terraform infrastructure files
-- Generate static HTML website files
-- Configure security policies and encryption
-- Set up monitoring and logging
-- No Lambda functions or API Gateway required
+## Implementation Scope
+- Create Terraform infrastructure code
+- Generate sample HTML website files
+- Configure monitoring and security
+- No Python Lambda code needed for this requirement

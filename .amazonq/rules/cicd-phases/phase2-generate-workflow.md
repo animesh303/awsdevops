@@ -45,6 +45,20 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
            - ".github/workflows/terraform-ci.yml"
      ```
 
+   - **AWS Credentials Configuration (Mandatory):** If any workflow step requires AWS CLI credentials (e.g., Terraform CLI commands that interact with AWS), the workflow MUST include a step to configure AWS credentials via OIDC before any AWS-dependent operations. Include the following step template and MANDATORILY prompt the user to update the IAM role ARN:
+
+     ```yaml
+     - name: Configure AWS credentials via OIDC
+       uses: aws-actions/configure-aws-credentials@v4
+       with:
+         role-to-assume: arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME # USER MUST UPDATE THIS
+         aws-region: us-east-1 # or your region
+     ```
+
+     - Place this step as one of the first steps in any job that performs AWS operations
+     - Require the workflow to declare `permissions: id-token: write` (for OIDC) at the job or workflow level
+     - When presenting the workflow preview, explicitly prompt: "⚠️ **ACTION REQUIRED:** Update the IAM role ARN in the 'Configure AWS credentials via OIDC' step with your project's IAM role. The role must trust GitHub's OIDC provider and have the necessary AWS permissions."
+
 2. **Python Workflow Jobs:**
    - Define separate jobs (examples below) and run them in parallel when possible:
      - `python-lint` (matrix: 3.10, 3.11, 3.12): setup + Flake8 SARIF
@@ -70,6 +84,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      - `tf-lint`: run `tflint`
      - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`
      - `tf-upload-sarif`: `needs: [tf-security]`; ensure SARIF exists, then upload via CodeQL action
+   - **AWS Credentials:** Since Terraform workflows typically interact with AWS, ALL Terraform jobs MUST include the "Configure AWS credentials via OIDC" step (see Step 1) before any `terraform init/validate/plan/apply` commands. The job must declare `permissions: id-token: write` for OIDC to work.
    - For any Terraform CLI step (`terraform init/validate/plan/apply`), set the Terraform Cloud token environment variable:
 
      ```yaml
@@ -118,3 +133,4 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
    - Include key triggers, environments, permissions, and artifact passing
 5. **Checkpoint:**
    - Prompt user to confirm: "Proceed to generate CI and CD workflows (dev → test → prod) with the described dependencies and protections?" Wait for confirmation.
+   - **If workflows include AWS credential configuration steps:** After presenting the preview, explicitly display: "⚠️ **REQUIRED ACTION:** You must update the IAM role ARN in all 'Configure AWS credentials via OIDC' steps with your project's IAM role. Ensure the role trusts GitHub's OIDC provider."
