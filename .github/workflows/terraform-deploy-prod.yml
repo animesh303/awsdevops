@@ -8,6 +8,11 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-prod
+  cancel-in-progress: false
 
 jobs:
   deploy-prod:
@@ -15,12 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: prod
-    concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-prod
     defaults:
       run:
         working-directory: iac/terraform
+    
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Terraform
@@ -28,7 +33,13 @@ jobs:
         with:
           terraform_version: ~1.0
 
-      - name: Download Plan Artifact
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::027378719919:role/GitHubDeploy-Kiro
+          aws-region: us-east-1
+
+      - name: Download Terraform Plan
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
@@ -44,23 +55,29 @@ jobs:
       - name: Terraform Apply
         env:
           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-          TF_WORKSPACE: prod
+        run: terraform apply -input=false tfplan
+
+      - name: Upload Website Files to S3
         run: |
-          if [ -f "tfplan" ]; then
-            terraform apply -input=false tfplan
-          else
-            echo "Plan artifact not found, running plan and apply"
-            terraform plan -out=tfplan
-            terraform apply -input=false tfplan
-          fi
+          BUCKET_NAME=$(terraform output -raw website_bucket_name)
+          aws s3 cp ../../src/website/ s3://$BUCKET_NAME/ --recursive
 
-      - name: Terraform Output
-        env:
-          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-        run: terraform output -json > terraform-outputs-prod.json
+      - name: Production Health Check
+        run: |
+          # Verify website is accessible
+          WEBSITE_URL=$(terraform output -raw website_url)
+          curl -f $WEBSITE_URL || exit 1
+          
+          # Verify all AWS services are healthy
+          TABLE_NAME=$(terraform output -raw dynamodb_table_name)
+          aws dynamodb describe-table --table-name $TABLE_NAME
+          
+          QUEUE_URL=$(terraform output -raw sqs_queue_url)
+          aws sqs get-queue-attributes --queue-url $QUEUE_URL
 
-      - name: Upload Outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: terraform-outputs-prod
-          path: iac/terraform/terraform-outputs-prod.json
+      - name: Notify Deployment Success
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "Website URL: $(terraform output -raw website_url)"
+          echo "DynamoDB Table: $(terraform output -raw dynamodb_table_name)"
+          echo "SQS Queue: $(terraform output -raw sqs_queue_name)"

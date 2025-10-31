@@ -133,4 +133,4 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
    - Include key triggers, environments, permissions, and artifact passing
 5. **Checkpoint:**
    - Prompt user to confirm: "Proceed to generate CI and CD workflows (dev → test → prod) with the described dependencies and protections?" Wait for confirmation.
-   - **If workflows include AWS credential configuration steps:** After presenting the preview, explicitly display: "⚠️ **REQUIRED ACTION:** You must update the IAM role ARN in all 'Configure AWS credentials via OIDC' steps with your project's IAM role. Ensure the role trusts GitHub's OIDC provider."
+   - **If workflows include AWS credential configuration steps:** After presenting the preview, explicitly display: "⚠️ **REQUIRED ACTION:** You must update the IAM role ARN in all workflow files at .github/workflows/\*.yml 'Configure AWS credentials via OIDC' steps with your project's IAM role. Ensure the role trusts GitHub's OIDC provider."
