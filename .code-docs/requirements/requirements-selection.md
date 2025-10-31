@@ -2,13 +2,22 @@
 
 ## Available Requirements for Implementation
 
-**1. AWS-2** - I want to set up a AWS S3 website bucket with a sample hello world webpage hosted on it. Also I need to have a DynamoDb and a SQS Queue.
-   - **Status**: Final
-   - **Services**: S3 Static Website, DynamoDB, SQS Queue
-   - **Description**: Static website hosting with supporting AWS services
+Please select a requirement by number or ticket key:
 
-## Instructions
+### 1. AWS-3 - Three Tier Application Architecture
+- **Status**: Final - Approved
+- **Services**: EC2, RDS, S3, VPC, ALB, IAM, CloudWatch, KMS
+- **Architecture**: Complete three-tier web application with high availability
+- **Description**: 
+  - **Web Tier**: Load-balanced EC2 instances in public subnets
+  - **App Tier**: Auto-scaled EC2 instances in private subnets
+  - **Data Tier**: Multi-AZ RDS + S3 storage in private subnets
+- **Features**: 
+  - Multi-AZ deployment with 99.9% uptime SLA
+  - Auto-scaling and load balancing
+  - Comprehensive security and monitoring
+  - Python-based application stack
 
-Please select a requirement to implement by entering:
-- Number: 1
-- Ticket Key: AWS-2
+---
+
+**Please select a requirement by entering the number (1) or ticket key (AWS-3):**

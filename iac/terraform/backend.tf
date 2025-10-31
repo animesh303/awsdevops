@@ -1,5 +1,5 @@
 # Changelog:
-# AWS-2 - Initial backend configuration - 2025-01-27
+# AWS-3 - Initial backend configuration for three-tier application - 2025-01-27
 
 terraform {
   cloud {
