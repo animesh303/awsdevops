@@ -4,20 +4,18 @@ on:
   workflow_run:
     workflows: ["Terraform CI"]
     types: [completed]
+    branches: [main, develop]
 
 permissions:
   contents: read
   id-token: write
-
-concurrency:
-  group: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-dev
-  cancel-in-progress: false
 
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: dev
+    concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-dev
     defaults:
       run:
         working-directory: iac/terraform
@@ -29,12 +27,6 @@ jobs:
         with:
           terraform_version: ~1.1
           
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -45,18 +37,17 @@ jobs:
           }
           EOF
           
-      - name: Download Plan Artifact
-        uses: actions/download-artifact@v4
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          name: terraform-plan
-          path: iac/terraform/
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
           
       - name: Terraform Init
         run: terraform init
         
+      - name: Terraform Plan
+        run: terraform plan
+        
       - name: Terraform Apply
-        env:
-          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-        run: terraform apply -input=false tfplan
+        run: terraform apply -input=false -auto-approve
