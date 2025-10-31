@@ -43,10 +43,15 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
-      - name: Terraform Cred Validate
+      - name: Configure Terraform Cloud
         env:
-          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-        run: echo $TF_TOKEN_app_terraform_io
+          TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+        run: |
+          cat > $HOME/.terraformrc << EOF
+          credentials "app.terraform.io" {
+            token = "$TFC_TOKEN"
+          }
+          EOF
 
       - name: Terraform Init
         env:
