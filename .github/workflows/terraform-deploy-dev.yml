@@ -55,9 +55,16 @@ jobs:
       - name: Terraform Plan
         env:
           TF_VAR_environment: dev
-        run: terraform plan
+        run: terraform plan -no-color
       
       - name: Terraform Apply
         env:
           TF_VAR_environment: dev
         run: terraform apply -input=false -auto-approve
+      
+      - name: Output Infrastructure Details
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Environment: dev" >> $GITHUB_STEP_SUMMARY
+          echo "- Terraform Version: $(terraform version -json | jq -r '.terraform_version')" >> $GITHUB_STEP_SUMMARY
+          echo "- AWS Region: ${{ vars.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
