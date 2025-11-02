@@ -4,7 +4,6 @@ on:
   workflow_run:
     workflows: ["Terraform CI"]
     types: [completed]
-    branches: [develop]
 
 permissions:
   contents: read
