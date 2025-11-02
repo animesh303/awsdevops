@@ -1,22 +1,34 @@
 # AWS-3 Code Analysis
 
 ## Existing Codebase Analysis
-- **Status**: New implementation - no existing infrastructure code found
-- **Directory Structure**: Need to create `iac/terraform/` directory
-- **Tagged Resources**: No existing resources with `JiraId=AWS-3`
 
-## Implementation Plan
-- **New Infrastructure**: Complete three-tier architecture from scratch
-- **Terraform Files**: Create feature-specific and shared configuration files
-- **Backend**: Need to create backend configuration
-- **Validation**: All Terraform files must pass validation
+### Current Structure
+- **iac/**: Directory does not exist - will create new
+- **src/**: Empty directory - will create new application code
+- **tests/**: Empty directory - will create new tests
+- **.gitignore**: Exists - will update with Terraform and Python ignores
 
-## Code Generation Scope
-- VPC with public/private subnets across 2 AZs
-- Security Groups for each tier
-- EC2 instances with Auto Scaling Groups
-- Application Load Balancer
-- RDS Multi-AZ database
-- S3 bucket for storage
-- IAM roles and policies
-- CloudWatch monitoring
+### Implementation Plan
+- **New Implementation**: No existing AWS-3 resources found
+- **Feature Name**: two-tier-web-app
+- **Resources to Create**: All infrastructure and application code from scratch
+
+### Tagging Strategy
+- All resources will be tagged with `JiraId = "AWS-3"` and `ManagedBy = "terraform"`
+
+## Code Generation Plan
+
+### Infrastructure (Terraform)
+- Create `iac/terraform/` directory structure
+- Generate VPC, subnets, security groups, EC2, ALB, S3, IAM resources
+- Implement two-tier architecture (Web + App tiers)
+
+### Application Code (Python)
+- Create `src/lambda-two-tier-web-app/` directory
+- Generate Python application code for web and app tiers
+- Include requirements.txt and proper error handling
+
+### Testing
+- Create `tests/two-tier-web-app/` directory
+- Generate unit tests for application code
+- Include infrastructure validation tests

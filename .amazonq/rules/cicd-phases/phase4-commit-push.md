@@ -37,7 +37,7 @@ Safely commit and push generated/updated GitHub Actions workflow files after exp
        - Body (bullets):
          - Ensure `security-events: read` permission
          - Add Flake8/Bandit SARIF, tflint, Checkov SARIF
-         - Validate Terraform config (`fmt`, `init -backend=false`, `validate`)
+         - Validate Terraform config (`init -backend=false`, `validate`)
          - Tag resources with `JiraId` where applicable
 
 5. **Push Changes**
