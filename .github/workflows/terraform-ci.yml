@@ -98,24 +98,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install Checkov
-        run: pip install checkov
-
-      - name: Run Checkov
+      - name: Run Checkov (SARIF)
         run: |
-          checkov -d iac/terraform --output-file-path iac/terraform/checkov-results.sarif --output sarif
-        continue-on-error: true
+          pip install checkov
+          checkov -d iac/terraform --output-file-path results_sarif.sarif --output sarif
 
-      - name: Upload Checkov SARIF artifact
+      - name: Upload SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: checkov-sarif
-          path: iac/terraform/checkov-results.sarif
+          path: results_sarif.sarif
 
   tf-upload-sarif:
     runs-on: ubuntu-latest
