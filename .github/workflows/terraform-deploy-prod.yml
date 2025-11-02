@@ -55,28 +55,9 @@ jobs:
       - name: Terraform Plan
         env:
           TF_VAR_environment: prod
-        run: terraform plan -no-color
+        run: terraform plan
       
       - name: Terraform Apply
         env:
           TF_VAR_environment: prod
         run: terraform apply -input=false -auto-approve
-      
-      - name: Output Infrastructure Summary
-        run: |
-          echo "## 🚀 Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Environment: **PRODUCTION**" >> $GITHUB_STEP_SUMMARY
-          echo "- Terraform Version: $(terraform version -json | jq -r '.terraform_version')" >> $GITHUB_STEP_SUMMARY
-          echo "- AWS Region: ${{ vars.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Deployment Time: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "- Pipeline: CI → dev → test → **prod** ✅" >> $GITHUB_STEP_SUMMARY
-      
-      - name: Production Deployment Notification
-        run: |
-          echo "## 🎉 Production Deployment Complete!" >> $GITHUB_STEP_SUMMARY
-          echo "### Infrastructure Deployed:" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Three-tier application architecture" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Application Load Balancer with Auto Scaling" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ VPC with public/private subnets across 2 AZs" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ S3 storage with encryption and versioning" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Security groups with least privilege access" >> $GITHUB_STEP_SUMMARY
