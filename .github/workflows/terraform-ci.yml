@@ -47,6 +47,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Verify AWS credentials
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "ERROR: AWS credentials not found in environment"
+            echo "Please ensure AWS_ROLE_TO_ASSUME secret and AWS_REGION variable are configured"
+            exit 1
+          fi
+          echo "AWS credentials configured successfully"
+          aws sts get-caller-identity
+
       - name: Terraform Format
         run: terraform fmt -recursive
 
@@ -86,6 +96,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      - name: Verify AWS credentials
+        run: |
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "ERROR: AWS credentials not found in environment"
+            echo "Please ensure AWS_ROLE_TO_ASSUME secret and AWS_REGION variable are configured"
+            exit 1
+          fi
+          echo "AWS credentials configured successfully"
+          aws sts get-caller-identity
+
       - name: Terraform Init
         run: terraform init
 
@@ -104,7 +124,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Checkov
         run: pip install checkov
