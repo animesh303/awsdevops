@@ -82,7 +82,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      - `tf-validate`: pin version/cache; run `init`, `validate`
      - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
      - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`. Set `continue-on-error: true` for the job. If checkov exits with a non-zero status when it finds issues, workflow should continue execution so the SARIF can still be uploaded.
-     - `tf-upload-sarif`: `needs: [tf-security]`; download the SARIF to workspace root and ensure SARIF exists, then upload via CodeQL action. Set `continue-on-error: true` for the job.
+     - `tf-upload-sarif`: `needs: [tf-security]`; download the `checkov-results.sarif` SARIF and ensure SARIF exists, then upload via CodeQL action. Set `continue-on-error: true` for the job.
    - **Terraform Version Requirement (Mandatory):** If a workflow contains any Terraform CLI commands (`terraform init/validate/plan/apply`), the workflow MUST use Terraform version 1.1 or later. When using `hashicorp/setup-terraform@v3` or similar actions, specify `terraform_version: ~1.1` or `terraform_version: ^1.1` (minimum 1.1). Example:
 
      ```yaml
