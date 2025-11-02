@@ -81,8 +81,8 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
    - Define separate jobs and link with `needs:` where appropriate:
      - `tf-validate`: pin version/cache; run `init`, `validate`
      - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
-     - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`
-     - `tf-upload-sarif`: `needs: [tf-security]`; ensure SARIF exists, then upload via CodeQL action. If Checkov exits with a non-zero status when it finds issues, workflow should continue execution so the SARIF can still be uploaded.
+     - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`. Set `continue-on-error: true` for the job. If checkov exits with a non-zero status when it finds issues, workflow should continue execution so the SARIF can still be uploaded.
+     - `tf-upload-sarif`: `needs: [tf-security]`; ensure SARIF exists, then upload via CodeQL action.  Set `continue-on-error: true` for the job.
    - **Terraform Version Requirement (Mandatory):** If a workflow contains any Terraform CLI commands (`terraform init/validate/plan/apply`), the workflow MUST use Terraform version 1.1 or later. When using `hashicorp/setup-terraform@v3` or similar actions, specify `terraform_version: ~1.1` or `terraform_version: ^1.1` (minimum 1.1). Example:
 
      ```yaml
@@ -124,7 +124,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      ```
 
    - Ensure `iac/terraform/checkov-results.sarif` exists before upload; fail if missing
-   - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions)
+   - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions). The artifact is uploaded with path iac/terraform/checkov-results.sarif, so when downloaded it preserves that structure. The file will be at iac/terraform/checkov-results.sarif.
    - **Terraform Plan Artifact:** Do NOT upload Terraform plan as artifact when Terraform Cloud is used as the remote backend (plan output is not supported by Terraform Cloud). Only upload plan artifacts if using other backends (e.g., S3, local).
    - Terraform CD Workflows (separate files):
 

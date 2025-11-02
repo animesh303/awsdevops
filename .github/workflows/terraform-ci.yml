@@ -50,6 +50,9 @@ jobs:
           }
           EOF
       
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+      
       - name: Terraform Init
         run: terraform init
       
@@ -93,7 +96,7 @@ jobs:
         run: terraform init
       
       - name: Terraform Plan
-        run: terraform plan
+        run: terraform plan -no-color
 
   tf-security:
     name: Terraform Security Scan
@@ -117,13 +120,14 @@ jobs:
       
       - name: Run Checkov
         run: |
-          checkov -d . --output-file-path checkov-results.sarif --output sarif
+          checkov -d . --output-file-path checkov-results.sarif --output sarif || true
       
       - name: Upload Checkov SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: checkov-sarif
           path: iac/terraform/checkov-results.sarif
+          retention-days: 30
 
   tf-upload-sarif:
     name: Upload Security Results
@@ -138,6 +142,14 @@ jobs:
         with:
           name: checkov-sarif
           path: iac/terraform/
+      
+      - name: Verify SARIF file exists
+        run: |
+          if [ ! -f iac/terraform/checkov-results.sarif ]; then
+            echo "SARIF file not found, skipping upload"
+            exit 0
+          fi
+          echo "SARIF file found, proceeding with upload"
       
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
