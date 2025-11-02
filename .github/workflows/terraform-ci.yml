@@ -31,6 +31,12 @@ jobs:
         with:
           terraform_version: ~1.1
 
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -40,22 +46,6 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Verify AWS credentials
-        run: |
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "ERROR: AWS credentials not found in environment"
-            echo "Please ensure AWS_ROLE_TO_ASSUME secret and AWS_REGION variable are configured"
-            exit 1
-          fi
-          echo "AWS credentials configured successfully"
-          aws sts get-caller-identity
 
       - name: Terraform Format
         run: terraform fmt -recursive
@@ -80,6 +70,12 @@ jobs:
         with:
           terraform_version: ~1.1
 
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -90,22 +86,6 @@ jobs:
           }
           EOF
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Verify AWS credentials
-        run: |
-          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ]; then
-            echo "ERROR: AWS credentials not found in environment"
-            echo "Please ensure AWS_ROLE_TO_ASSUME secret and AWS_REGION variable are configured"
-            exit 1
-          fi
-          echo "AWS credentials configured successfully"
-          aws sts get-caller-identity
-
       - name: Terraform Init
         run: terraform init
 
@@ -115,29 +95,26 @@ jobs:
   tf-security:
     runs-on: ubuntu-latest
     continue-on-error: true
-    defaults:
-      run:
-        working-directory: iac/terraform
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Install Checkov
         run: pip install checkov
 
       - name: Run Checkov
         run: |
-          checkov -d . --output-file-path results_sarif.sarif --output sarif || true
+          checkov -d iac/terraform --output-file-path results_sarif.sarif --output sarif || true
 
       - name: Upload Checkov SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: checkov-sarif
-          path: iac/terraform/results_sarif.sarif
+          path: results_sarif.sarif
 
   tf-upload-sarif:
     runs-on: ubuntu-latest

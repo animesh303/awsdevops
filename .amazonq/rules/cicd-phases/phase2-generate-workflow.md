@@ -67,15 +67,37 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      - `python-upload-sarif`: `needs: [python-lint, python-security]`, upload SARIF files
    - Ensure SARIF files exist before upload; fail the job if missing
    - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions)
-   - Python CD Workflows (if deployment is applicable):
-     - Files: `python-deploy-dev.yml`, `python-deploy-test.yml`, `python-deploy-prod.yml`
-     - Triggers:
-       - `deploy-dev` uses `workflow_run` on `{stack} CI` success
-       - `deploy-test` uses `workflow_run` on `{stack} Deploy to dev` success
-       - `deploy-prod` uses `workflow_run` on `{stack} Deploy to test` success
-     - Use `environment: dev|test|prod` for approvals and secrets scoping
-     - Typical steps (adapt to project): download build artifact, build/push image (if applicable), deploy to target (e.g., Kubernetes, VM, serverless)
-     - Set `concurrency` to avoid overlapping deploys per environment
+
+- Python CD Workflows (if deployment is applicable):
+  - Files: `python-deploy-dev.yml`, `python-deploy-test.yml`, `python-deploy-prod.yml`
+  - **Branch Trigger Requirements (Mandatory):**
+    - `deploy-dev` workflow MUST only trigger when the triggering CI workflow ran on the `develop` branch. Add `branches: [develop]` to the `workflow_run` trigger
+    - `deploy-test` workflow MUST only trigger when the triggering dev deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
+    - `deploy-prod` workflow MUST only trigger when the triggering test deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
+  - Triggers:
+    - `deploy-dev` uses `workflow_run` on `{stack} CI` success
+    - `deploy-test` uses `workflow_run` on `{stack} Deploy to dev` success
+    - `deploy-prod` uses `workflow_run` on `{stack} Deploy to test` success
+  - Example `workflow_run` trigger with branch filter for dev:
+    ```yaml
+    on:
+      workflow_run:
+        workflows: ["Python CI"]
+        types: [completed]
+        branches: [develop]
+    ```
+  - Example `workflow_run` trigger with branch filter for test/prod:
+    ```yaml
+    on:
+      workflow_run:
+        workflows: ["Python Deploy to dev"]
+        types: [completed]
+        branches: [main]
+    ```
+  - Use `environment: dev|test|prod` for approvals and secrets scoping
+  - Typical steps (adapt to project): download build artifact, build/push image (if applicable), deploy to target (e.g., Kubernetes, VM, serverless)
+  - Set `concurrency` to avoid overlapping deploys per environment
+
 3. **Terraform Workflow Jobs:**
 
    - Define separate jobs and link with `needs:` where appropriate:
@@ -156,46 +178,67 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
    - Ensure `iac/terraform/checkov-results.sarif` exists before upload; fail if missing
    - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions). The artifact is uploaded with path iac/terraform/checkov-results.sarif, so when downloaded it preserves that structure. The file will be at iac/terraform/checkov-results.sarif.
    - **Terraform Plan Artifact:** Do NOT upload Terraform plan as artifact when Terraform Cloud is used as the remote backend (plan output is not supported by Terraform Cloud). Only upload plan artifacts if using other backends (e.g., S3, local).
-   - Terraform CD Workflows (separate files):
 
-     - Files: `terraform-deploy-dev.yml`, `terraform-deploy-test.yml`, `terraform-deploy-prod.yml`
-     - Common conventions:
-       - `on: workflow_run` with `workflows: ["Terraform CI"]` and `types: [completed]` for `dev`
-       - `on: workflow_run` with `workflows: ["Terraform Deploy to dev"]` for `test`
-       - `on: workflow_run` with `workflows: ["Terraform Deploy to test"]` for `prod`
-       - Guard with `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
-       - `environment: dev|test|prod` and use environment-scoped secrets/state
-       - `concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-${{ github.environment }}`
-       - **Plan Artifact Handling:** When Terraform Cloud is used as the remote backend, do NOT download plan artifacts (plan output is not supported). Run `terraform plan` and `terraform apply` directly without plan file dependencies. If using other backends (e.g., S3, local), download the plan artifact produced by CI and apply it; if plan artifact missing, fail early.
-     - Example apply step for Terraform Cloud (no plan file):
+- Terraform CD Workflows (separate files):
 
-       ```yaml
-       - name: Terraform Plan
-         env:
-           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-         run: terraform plan
+  - Files: `terraform-deploy-dev.yml`, `terraform-deploy-test.yml`, `terraform-deploy-prod.yml`
+  - **Branch Trigger Requirements (Mandatory):**
+    - `terraform-deploy-dev.yml` MUST only trigger when the triggering CI workflow ran on the `develop` branch. Add `branches: [develop]` to the `workflow_run` trigger
+    - `terraform-deploy-test.yml` MUST only trigger when the triggering dev deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
+    - `terraform-deploy-prod.yml` MUST only trigger when the triggering test deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
+  - Common conventions:
+    - `on: workflow_run` with `workflows: ["Terraform CI"]` and `types: [completed]` for `dev`
+    - `on: workflow_run` with `workflows: ["Terraform Deploy to dev"]` for `test`
+    - `on: workflow_run` with `workflows: ["Terraform Deploy to test"]` for `prod`
+    - Example `workflow_run` trigger with branch filter for dev:
+      ```yaml
+      on:
+        workflow_run:
+          workflows: ["Terraform CI"]
+          types: [completed]
+          branches: [develop]
+      ```
+    - Example `workflow_run` trigger with branch filter for test/prod:
+      ```yaml
+      on:
+        workflow_run:
+          workflows: ["Terraform Deploy to dev"]
+          types: [completed]
+          branches: [main]
+      ```
+    - Guard with `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
+    - `environment: dev|test|prod` and use environment-scoped secrets/state
+    - `concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-${{ github.environment }}`
+    - **Plan Artifact Handling:** When Terraform Cloud is used as the remote backend, do NOT download plan artifacts (plan output is not supported). Run `terraform plan` and `terraform apply` directly without plan file dependencies. If using other backends (e.g., S3, local), download the plan artifact produced by CI and apply it; if plan artifact missing, fail early.
+  - Example apply step for Terraform Cloud (no plan file):
 
-       - name: Terraform Apply
-         env:
-           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-         run: terraform apply -input=false -auto-approve
-       ```
+    ```yaml
+    - name: Terraform Plan
+      env:
+        TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+      run: terraform plan
 
-       **Note:** When using Terraform Cloud remote backend, plan output files are NOT supported. Do NOT use `terraform plan -out=filename` or `terraform apply filename`. Run `terraform plan` and `terraform apply` directly without plan file dependencies. Consider using Terraform Cloud's native plan/apply workflow (sentinel policies, run triggers) for advanced approval workflows.
+    - name: Terraform Apply
+      env:
+        TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+      run: terraform apply -input=false -auto-approve
+    ```
 
-     - Example apply step for non-Terraform Cloud backends (with plan file download):
+    **Note:** When using Terraform Cloud remote backend, plan output files are NOT supported. Do NOT use `terraform plan -out=filename` or `terraform apply filename`. Run `terraform plan` and `terraform apply` directly without plan file dependencies. Consider using Terraform Cloud's native plan/apply workflow (sentinel policies, run triggers) for advanced approval workflows.
 
-       ```yaml
-       - name: Download plan artifact
-         uses: actions/download-artifact@v4
-         with:
-           name: terraform-plan
+  - Example apply step for non-Terraform Cloud backends (with plan file download):
 
-       - name: Terraform Apply
-         env:
-           TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-         run: terraform apply -input=false "${{ env.TF_PLAN_PATH }}"
-       ```
+    ```yaml
+    - name: Download plan artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: terraform-plan
+
+    - name: Terraform Apply
+      env:
+        TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+      run: terraform apply -input=false "${{ env.TF_PLAN_PATH }}"
+    ```
 
 4. **Present Workflow YAML Preview:**
    - Show summarized YAML contents for all generated files, e.g.:
