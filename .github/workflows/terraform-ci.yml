@@ -19,27 +19,24 @@ permissions:
 
 jobs:
   tf-validate:
-    name: Terraform Validate
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: iac/terraform
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+          
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -49,36 +46,36 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+          
+      - name: Terraform Format
+        run: terraform fmt -recursive
+        
       - name: Terraform Init
         run: terraform init
-      
+        
       - name: Terraform Validate
         run: terraform validate
 
   tf-plan:
-    name: Terraform Plan
     runs-on: ubuntu-latest
     needs: [tf-validate]
     defaults:
       run:
         working-directory: iac/terraform
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+          
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -88,37 +85,32 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+          
       - name: Terraform Init
         run: terraform init
-      
+        
       - name: Terraform Plan
         run: terraform plan
 
   tf-security:
-    name: Terraform Security Scan
     runs-on: ubuntu-latest
     continue-on-error: true
-    defaults:
-      run:
-        working-directory: iac/terraform
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+          
       - name: Install Checkov
         run: pip install checkov
-      
+        
       - name: Run Checkov
         run: |
-          checkov -d . --output-file-path checkov-results.sarif --output sarif || true
-      
+          checkov -d iac/terraform --output-file-path iac/terraform/checkov-results.sarif --output sarif
+        continue-on-error: true
+        
       - name: Upload Checkov SARIF artifact
         uses: actions/upload-artifact@v4
         with:
@@ -126,32 +118,19 @@ jobs:
           path: iac/terraform/checkov-results.sarif
 
   tf-upload-sarif:
-    name: Upload Security Results
     runs-on: ubuntu-latest
     needs: [tf-security]
     continue-on-error: true
-    if: always()
-    
     steps:
-      - name: Download Checkov SARIF
+      - uses: actions/checkout@v4
+      
+      - name: Download SARIF artifacts
         uses: actions/download-artifact@v4
         with:
           name: checkov-sarif
-          path: ./
-      
-      - name: Search for SARIF files
-        run: |
-          find . -name "*.sarif" -type f | head -10
-          if [ -f "checkov-results.sarif" ]; then
-            echo "SARIF_FILE=checkov-results.sarif" >> $GITHUB_ENV
-          elif [ -f "iac/terraform/checkov-results.sarif" ]; then
-            echo "SARIF_FILE=iac/terraform/checkov-results.sarif" >> $GITHUB_ENV
-          else
-            echo "SARIF_FILE=" >> $GITHUB_ENV
-          fi
-      
+          path: iac/terraform/
+          
       - name: Upload SARIF to GitHub
-        if: env.SARIF_FILE != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ env.SARIF_FILE }}
+          sarif_file: '**/*.sarif'

@@ -16,29 +16,26 @@ concurrency:
 
 jobs:
   deploy-prod:
-    name: Deploy to Production
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: prod
     defaults:
       run:
         working-directory: iac/terraform
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+          
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -48,16 +45,12 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+          
       - name: Terraform Init
         run: terraform init
-      
+        
       - name: Terraform Plan
-        env:
-          TF_VAR_environment: prod
         run: terraform plan
-      
+        
       - name: Terraform Apply
-        env:
-          TF_VAR_environment: prod
         run: terraform apply -input=false -auto-approve
