@@ -1,6 +1,6 @@
-# PRIORITY: Use this workflow to generate GitHub Actions workflows for codebases with Python and/or Terraform
+# PRIORITY: Use this workflow to generate or regenerate GitHub Actions workflows for codebases
 
-# When CICD workflow generation is requested, ALWAYS follow this workflow FIRST
+# When CICD workflow generation or regeneration is requested, ALWAYS follow this workflow FIRST
 
 ## Override Instructions
 
@@ -35,11 +35,11 @@ This focused approach ensures your codebase is production-ready and follows AWS/
 1. **Display Custom Welcome Message**: Show the CICD welcome message above
 2. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin detection and planning?**" - DO NOT PROCEED until user confirms
 
-# Custom CICD Workflow Generation Process (3-Phase Modular)
+# Custom CICD Workflow Generation Process (4-Phase Modular)
 
 ## Overview
 
-Follow this 3-phase approach. For each phase, load and execute detailed steps from the corresponding `.amazonq/rules/cicd-phases/` file:
+Follow this 4-phase approach. For each phase, load and execute detailed steps from the corresponding `.amazonq/rules/cicd-phases/` file:
 
 ---
 
@@ -48,6 +48,7 @@ Follow this 3-phase approach. For each phase, load and execute detailed steps fr
 1. **Load all steps from `cicd-phases/phase1-detect-plan.md`**
 2. Execute steps to scan for code, identify environments, draft plan, and checkpoint user confirmation.
 3. **Ask for Confirmation and WAIT**: Ask: "Detection and planning complete. Are you ready to generate workflows?" - DO NOT PROCEED until user confirms
+4. **Ask for Confirmation and WAIT**: Ask: "Generation completed. Are you ready to push code to repository?" - DO NOT PROCEED until user confirms
 
 ---
 
@@ -64,6 +65,14 @@ Follow this 3-phase approach. For each phase, load and execute detailed steps fr
 1. **Load all steps from `cicd-phases/phase3-review-confirm.md`**
 2. Execute steps to review generated workflows, present details, and checkpoint before finalization.
 3. **Ask for Final Confirmation**: Ask: "CICD setup complete. Do you approve the final workflows for integration?" - DO NOT PROCEED until user confirms
+
+---
+
+# Phase 4: Commit & Push
+
+1. **Load all steps from `cicd-phases/phase4-commit-push.md`**
+2. Execute steps to commit generated/updated workflow files and push to the repository, only after explicit user approval.
+3. **Ask for Confirmation and WAIT**: Ask: "Ready to commit and push the workflow changes to the repository?" - DO NOT PROCEED until user confirms
 
 ---
 
@@ -88,7 +97,7 @@ Follow this 3-phase approach. For each phase, load and execute detailed steps fr
 ## Terraform CI Guidance
 
 - Pin Terraform version and cache plugins
-- Run `terraform fmt -check`, `init`, `validate`, and `plan`
+- Run `init`, `validate`, and `plan`
 - Add `tflint` and `checkov` with SARIF
 - Upload plan as an artifact for review
 

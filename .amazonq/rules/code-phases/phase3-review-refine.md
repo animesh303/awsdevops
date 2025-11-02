@@ -4,47 +4,46 @@
 
 **Universal Phase**: Works with any generated code to review and refine iteratively
 
-1. **Present Code Quality Validation**: Run validation checks first:
+1. **Run Quality Validation**: Execute validation checks:
 
-   - Run final linting and validation checks
-   - Confirm security best practices are followed
-   - Ensure code follows AWS best practices
-   - Validate Terraform configuration is valid
+   - Run linting and validation checks for all code
+   - Verify security best practices are followed
+   - Confirm code follows AWS best practices
+   - Validate IaC configuration (if applicable)
    - Display code quality reports in chat
 
-2. **Present Generated/Modified Code for Review**: Display file links for user review:
+2. **Present Code for Review**: Display generated/modified files:
 
-   - Present links to NEWLY GENERATED Terraform files (e.g., `{feature-name}-main.tf`, `{feature-name}-variables.tf`)
-   - Present links to MODIFIED Terraform files (if existing files were updated)
-   - Present links to NEWLY GENERATED Python Lambda code in `src/lambda-{feature-name}/`
-   - Present links to MODIFIED Python Lambda files (if existing files were updated)
-   - Ask: "Please review the newly generated/modified code using the provided links. What changes would you like to make?"
+   - Present file paths as clickable links using actual file paths (replace placeholders with real names)
+   - **File path format** (in order of preference):
+     - Clickable links from Amazon Q chat window.
+     - Relative paths from workspace root (e.g., `iac/terraform/file.tf`)
+     - Absolute paths in backticks as fallback
+   - Present links to all newly generated and modified files (IaC, application code, tests, etc.)
+   - Ask: "Please review the generated/modified code using the provided links. What changes would you like to make?"
 
-3. **Handle User Feedback and Updates**: Process user feedback directly:
+3. **Process User Feedback**: Iteratively refine based on feedback:
 
-   - Collect specific feedback on code sections that need changes
+   - Collect specific feedback on code sections needing changes
    - Ask clarifying questions for unclear feedback
-   - Update code files directly based on user input
-   - No iteration copies needed - modify the original files
+   - Update code files directly (modify originals, no copies needed)
+   - After each update iteration:
+     - Present links to only the files updated in that iteration (using same file path format)
+     - Re-run linting and quality checks
+     - Display updated quality reports
+     - Ask: "Are there any other changes needed?"
+   - Continue until user confirms satisfaction
 
-4. **Iterative Refinement Process**: Continue until user approval:
-
-   - Present links to ONLY the files that were updated in the current iteration
-   - Re-run linting and quality checks after modifications
-   - Display updated code quality reports in chat
-   - Ask: "Are there any other changes needed to the code?"
-   - Continue updating until user confirms satisfaction
-
-5. **Generate Documentation**: Create implementation documentation:
+4. **Generate Documentation**: Create implementation documentation:
 
    - Generate README.md with setup instructions
-   - Generate deployment guide
+   - Create deployment guide
    - Document environment variables and configuration
    - Create troubleshooting guide
-   - Store in `.code-docs/documentation/{feature-name}/`
+   - Store documentation in `.code-docs/documentation/{feature-name}/`
 
-6. **Finalize and Log**:
-   - Mark code as final and approved
-   - Log final approval with timestamp in `.code-docs/audit.md`
-   - Update Phase 3 complete in code-state.md
-   - Provide summary of final implementation
+5. **Log and Seek Approval**:
+   - Mark code as approved
+   - Log approval with timestamp in `.code-docs/audit.md`
+   - Update Phase 3 complete status in `.code-docs/code-state.md`
+   - Provide summary of implementation
