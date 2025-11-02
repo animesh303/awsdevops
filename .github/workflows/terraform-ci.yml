@@ -141,7 +141,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: checkov-sarif
-          path: .
+          path: ./
 
       - name: Verify SARIF file exists
         run: |
