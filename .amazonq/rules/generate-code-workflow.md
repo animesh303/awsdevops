@@ -59,6 +59,12 @@ When the user requests to implement requirements or generate code, follow this s
 2. Execute the steps loaded from `code-phases/phase3-review-refine.md`
 3. **Ask for Final Confirmation**: Ask: "**Code generation complete. Are you satisfied with the final implementation?**" - DO NOT PROCEED until user confirms
 
+## Phase 4: Commit & Push
+
+1. Load all steps from `code-phases/phase4-commit-push.md`
+2. Ask the user: "Do you want me to commit and push the generated code changes now?"
+3. WAIT for explicit approval, then execute commit and push steps. Do not proceed without approval.
+
 ## Key Principles
 
 - Use `.jira-docs/requirements/` as single source of truth for requirements
