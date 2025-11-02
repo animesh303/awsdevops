@@ -143,6 +143,15 @@ jobs:
           name: checkov-sarif
           path: ./
 
+      - name: Debug - List downloaded files
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in workspace root:"
+          ls -la
+          echo "Files in iac/terraform:"
+          ls -la iac/terraform/ 2>/dev/null || echo "Directory not found"
+          echo "Searching for SARIF files:"
+          find . -name "*.sarif" -type f 2>/dev/null || echo "No SARIF files found"
       - name: Verify SARIF file exists
         run: |
           if [ ! -f iac/terraform/checkov-results.sarif ]; then
