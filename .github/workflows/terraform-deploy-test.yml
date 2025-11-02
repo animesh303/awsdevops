@@ -27,12 +27,6 @@ jobs:
         with:
           terraform_version: ~1.1
 
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ vars.AWS_REGION }}
-
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -42,6 +36,14 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
+
+      - name: Configure AWS credentials via OIDC
+        env:
+          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Terraform Init
         run: terraform init

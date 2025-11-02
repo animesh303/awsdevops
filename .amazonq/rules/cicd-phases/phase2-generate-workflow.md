@@ -82,7 +82,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
 
      - `tf-validate`: pin version/cache; run `init`, `validate`. While using `terraform fmt` do not include `check` option.
      - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
-     - `tf-security`: run Checkov with SARIF output. Set `continue-on-error: true` for the job.
+     - `tf-security`: run Checkov with SARIF output. If checkov exits with a non-zero status when it finds issues, workflow should continue execution so the SARIF can still be uploaded. Set `continue-on-error: true` for the job.
      - `tf-upload-sarif`: `needs: [tf-security]`; download the SARIF. **Important:** upload `results_sarif.sarif` via CodeQL action. SARIF File name should always be `results_sarif.sarif`. Set `continue-on-error: true` for the job. Example:
 
        ```yaml
