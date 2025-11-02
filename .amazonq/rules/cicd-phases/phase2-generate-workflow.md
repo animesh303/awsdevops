@@ -79,7 +79,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
 3. **Terraform Workflow Jobs:**
 
    - Define separate jobs and link with `needs:` where appropriate:
-     - `tf-validate`: pin version/cache; run `fmt -check`, `init`, `validate`
+     - `tf-validate`: pin version/cache; run `init`, `validate`
      - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
      - `tf-lint`: run `tflint`
      - `tf-security`: run Checkov SARIF → `iac/terraform/checkov-results.sarif`

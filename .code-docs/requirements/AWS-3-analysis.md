@@ -1,43 +1,40 @@
 # AWS-3 Requirements Analysis for Code Generation
 
 ## Feature Name
-**three-tier-application** (generated from requirements)
+**three-tier-application**
 
 ## AWS Services to Implement
-- **EC2**: Web tier and application tier instances
-- **RDS**: MySQL/PostgreSQL database with Multi-AZ
-- **S3**: Storage for static assets, backups, logs
-- **VPC**: Custom VPC with public/private subnets
+- **VPC**: Custom VPC with public/private subnets across 2 AZs
+- **EC2**: Web tier and App tier instances with Auto Scaling Groups
 - **ALB**: Application Load Balancer for web tier
-- **IAM**: Roles and policies for security
+- **RDS**: MySQL/PostgreSQL database with Multi-AZ
+- **S3**: Storage for static assets and backups
+- **Security Groups**: Tier-based security controls
+- **IAM**: Roles and policies for EC2 instances
 - **CloudWatch**: Monitoring and logging
-- **KMS**: Encryption services
 
 ## Programming Language Requirements
-- **Primary**: Python
-- **Web Framework**: Flask/Django for web applications
-- **Database**: SQLAlchemy for ORM
+- **Infrastructure Only**: No application code required
+- **Web Server**: Basic web server configuration
+- **Database**: RDS infrastructure only
 
 ## Infrastructure Requirements
 - **Multi-AZ deployment** for high availability
 - **Auto Scaling Groups** for web and app tiers
-- **Security Groups** with least privilege access
 - **Private subnets** for app and database tiers
-- **Public subnets** for web tier with ALB
+- **Public subnets** for web tier
+- **NAT Gateway** for private subnet internet access
 
 ## Testing Requirements
-- **Unit tests** for Python application code
-- **Infrastructure tests** for Terraform configuration
-- **Integration tests** for tier communication
+- Infrastructure validation tests
+- Terraform configuration validation
+- Security group rule validation
+- Multi-AZ connectivity tests
 
 ## Key Technical Specifications
-- **Response Time**: < 2 seconds
-- **Throughput**: 1000 concurrent users
-- **Availability**: 99.9% uptime SLA
-- **Instance Types**: t3.medium (web), t3.large (app), db.t3.medium (RDS)
-
-## Implementation Approach
-- **New Implementation**: No existing resources tagged with JiraId=AWS-3
-- **Terraform Structure**: Feature-specific modules for each tier
-- **Security**: Encryption at rest and in transit
-- **Monitoring**: CloudWatch metrics and CloudTrail audit logs
+- Web Tier: t3.medium instances (minimum 2)
+- App Tier: t3.large instances (minimum 2) 
+- Database: db.t3.medium with Multi-AZ
+- Storage: S3 Standard with lifecycle policies
+- Performance: <2s response time, 1000 concurrent users
+- Availability: 99.9% uptime SLA

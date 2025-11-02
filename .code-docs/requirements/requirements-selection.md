@@ -2,22 +2,13 @@
 
 ## Available Requirements for Implementation
 
-Please select a requirement by number or ticket key:
+**1. AWS-3 - Create three tier application using EC2, RDS, S3**
+   - **Ticket**: AWS-3
+   - **Title**: Create three tier application using EC2, RDS, S3
+   - **Status**: Final - Approved
+   - **Description**: Classic three-tier web application architecture with presentation, application, and data tiers
+   - **AWS Services**: EC2, RDS, S3, VPC, ALB, Auto Scaling
+   - **Language**: Python
+   - **Architecture**: Web Tier (EC2 + ALB) → App Tier (EC2) → Data Tier (RDS + S3)
 
-### 1. AWS-3 - Three Tier Application Architecture
-- **Status**: Final - Approved
-- **Services**: EC2, RDS, S3, VPC, ALB, IAM, CloudWatch, KMS
-- **Architecture**: Complete three-tier web application with high availability
-- **Description**: 
-  - **Web Tier**: Load-balanced EC2 instances in public subnets
-  - **App Tier**: Auto-scaled EC2 instances in private subnets
-  - **Data Tier**: Multi-AZ RDS + S3 storage in private subnets
-- **Features**: 
-  - Multi-AZ deployment with 99.9% uptime SLA
-  - Auto-scaling and load balancing
-  - Comprehensive security and monitoring
-  - Python-based application stack
-
----
-
-**Please select a requirement by entering the number (1) or ticket key (AWS-3):**
+Please select a requirement by number (1) or ticket key (AWS-3):

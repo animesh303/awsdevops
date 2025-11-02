@@ -4,118 +4,75 @@
 
 **Universal Phase**: Works with any selected requirements to generate comprehensive code
 
-1. **Analyze Selected Requirements**: Review the requirements document and analysis:
+1. **Analyze Requirements**: Review and understand what needs to be implemented:
 
    - Read requirements from `.code-docs/requirements/{TICKET-NUMBER}_requirements.md`
    - Read analysis from `.code-docs/requirements/{TICKET-NUMBER}-analysis.md`
-   - Identify all AWS services and components to implement
+   - Identify all AWS services and components required
    - Plan code structure and organization
 
-2. **Analyze Existing Code**: Examine current project structure and existing code:
+2. **Analyze Existing Codebase**: Understand what already exists:
 
-   - Scan `iac/terraform/` directory for existing Terraform files
-   - Scan `src/lambda-*/` directories for existing Python Lambda functions
-   - Scan `tests/` directory for existing test files
-   - Identify which resources already exist vs. need to be created
-   - Determine if requirements involve creating new resources or modifying existing ones
-   - Check AWS for resources tagged with `JiraId={TICKET-NUMBER}` to identify if the requirement is already implemented; if tagged resources exist, treat as a modification, otherwise treat as a new implementation
+   - Scan project directories (`iac/`, `src/`, `tests/`) for existing code
+   - Check AWS resources tagged with `JiraId={TICKET-NUMBER}` to determine if this is a new implementation or modification
+   - Identify existing resources that need updates vs. new resources to create
    - Store analysis in `.code-docs/requirements/{TICKET-NUMBER}-code-analysis.md`
 
-3. **Generate or Modify Terraform Infrastructure as Code**: Create or update Terraform configuration:
+3. **Generate Infrastructure as Code**: Create or update IaC configuration:
 
-   - **If NEW resources needed**: Generate files in `iac/terraform/` directory
-     - Generate `{feature-name}-main.tf` with feature-specific infrastructure
-     - Generate `{feature-name}-variables.tf` with feature-specific parameters
-     - Generate `{feature-name}-output.tf` with feature-specific outputs
-     - Generate `{feature-name}-local.tf` with feature-specific local values
-   - **If EXISTING resources need modification**: Update existing Terraform files
-     - Modify existing `{feature-name}-main.tf` files
-     - Update existing `{feature-name}-variables.tf` files
-     - Update existing `{feature-name}-output.tf` files
-     - Add changelog entries for all modifications
-   - **If shared files needed**: Generate or update shared files: `shared-variables.tf`, `shared-outputs.tf`, `versions.tf`
-   - Backend configuration requirement: Ensure `iac/terraform/backend.tf` exists to configure Terraform state backend
+   - **New resources**: Generate feature-specific IaC files following project conventions
+   - **Existing resources**: Update existing IaC files with required modifications
+   - **Shared resources**: Generate or update shared configuration files as needed
+   - **Backend configuration**: Ensure backend configuration exists
+     - If missing, create with placeholder configuration and request user confirmation
+     - **BLOCKING**: Do not proceed until user confirms backend configuration is correct
+   - **Tagging**: All AWS resources must include `JiraId = {TICKET-NUMBER}` and `ManagedBy = "terraform"` tags
+   - **Validation**: After any changes, validate IaC configuration:
+     - Run formatting (`terraform fmt -recursive`)
+     - Run initialization (`terraform init` or `terraform init -backend=false` if backend not configured)
+     - Run validation (`terraform validate`) - **BLOCKING**: Must pass with exit code 0
+     - Save validation output to `.code-docs/quality-reports/terraform-validate.log`
+     - Iterate until validation succeeds
+   - Follow AWS security best practices, naming conventions, and least privilege IAM policies
 
-     - If `backend.tf` does not exist, create it with the following DUMMY configuration and request the user to update the configurations manually to the correct backend settings for their environment:
+4. **Generate Application Code**: Create or update application code:
 
-       ```hcl
-       terraform {
-         cloud {
-           organization = "aws-devops-ai"
-           workspaces {
-             name = "ws-terraform"
-           }
-         }
-       }
-       ```
+   - **New code**: Create feature-specific code directories following project structure
+     - Generate main application code files
+     - Generate dependency files (`requirements.txt`, `package.json`, etc. as appropriate)
+     - Include proper error handling
+   - **Existing code**: Update existing code with new functionality
+     - Modify relevant files
+     - Update dependencies if needed
+     - Add changelog entries for modifications
+   - Follow language-specific best practices and AWS service guidelines
 
-     - Do not proceed until the user confirms that `iac/terraform/backend.tf` is up to date and correct. Treat lack of confirmation as BLOCKING
+5. **Apply Security Standards**: Ensure security best practices:
 
-   - Tagging policy: All AWS resources managed by Terraform must include a `tags` block with at least `JiraId = {TICKET-NUMBER}` and `ManagedBy = "terraform"`. Example:
-
-     ```hcl
-     tags = {
-       JiraId    = var.jira_id        # e.g., "PROJ-1234"
-       ManagedBy = "terraform"
-     }
-     ```
-
-   - Use the `JiraId` tag to determine if resources already exist for the ticket. If resources with `JiraId={TICKET-NUMBER}` are found, update those resources; if none are found, create new resources with the tag applied
-   - After creating or modifying any Terraform files (and after backend confirmation), validate the entire Terraform configuration from the root IaC directory (e.g., `iac/terraform/`):
-     - Run `terraform fmt -recursive`
-     - Run `terraform init` (use `-backend=false` only if the backend is intentionally not configured for validation)
-     - Run `terraform validate` and ensure it succeeds
-     - Treat validation failures as BLOCKING. Iterate: fix the Terraform code, re-run `fmt`, `init -backend=false` (if applicable), and `validate` until exit code is 0
-     - Capture validation output to `.code-docs/quality-reports/terraform-validate.log` for traceability
-     - Example remediation: for DynamoDB tables, set `billing_mode` to one of `PROVISIONED` or `PAY_PER_REQUEST` (not `ON_DEMAND`)
-   - Follow AWS security best practices and naming conventions
-
-4. **Generate or Modify Python Lambda Code**: Create or update Python code:
-
-   - **If NEW Lambda function needed**: Create `src/lambda-{feature-name}/` directory
-     - Generate main Lambda function code
-     - Generate `requirements.txt` with dependencies
-     - Generate `lambda_handler.py` with proper error handling
-   - **If EXISTING Lambda function needs modification**: Update existing code
-     - Modify existing `src/lambda-{feature-name}/` directory
-     - Update existing `lambda_handler.py` with new functionality
-     - Update existing `requirements.txt` if new dependencies needed
-     - Add changelog entries for all modifications
-   - Follow Python best practices and AWS Lambda guidelines
-
-5. **Apply Security Best Practices**: Implement security standards:
-
-   - Use least privilege IAM policies
-   - Enable encryption at rest and in transit
+   - Enable encryption at rest and in transit for all resources
    - Implement proper logging and monitoring
    - Add input validation and sanitization
-   - Follow OWASP guidelines for Python code
+   - Follow OWASP guidelines for application code
+   - Use least privilege access policies
 
-6. **Manage .gitignore File**: Ensure proper version control setup:
+6. **Manage Version Control**: Ensure proper `.gitignore` configuration:
 
-   - Check if `.gitignore` file exists at project root
-   - If not exists, create `.gitignore` file with appropriate entries
-   - If exists, update `.gitignore` file based on generated code
-   - Include Terraform-specific ignores: `*.tfstate*`, `.terraform/`, `*.tfplan`
-   - Include Python-specific ignores: `__pycache__/`, `*.pyc`, `.pytest_cache/`
-   - Include AWS-specific ignores: `.aws/`, `*.pem`, `*.key`
-   - Include IDE-specific ignores: `.vscode/`, `.idea/`, `*.swp`
-   - Include environment files: `.env`, `*.env`, `terraform.tfvars`
+   - Check if `.gitignore` exists at project root
+   - Create or update with appropriate ignores:
+     - IaC-specific: `*.tfstate*`, `.terraform/`, `*.tfplan`
+     - Language-specific: `__pycache__/`, `*.pyc`, `node_modules/`, `.pytest_cache/`
+     - AWS-specific: `.aws/`, `*.pem`, `*.key`
+     - IDE-specific: `.vscode/`, `.idea/`, `*.swp`
+     - Environment files: `.env`, `*.env`, `terraform.tfvars`
 
-7. **Perform Code Quality Checks**: Ensure code quality:
+7. **Perform Quality Validation**: Final quality checks:
 
-   - Run Python linting (flake8, black, isort)
-   - Run Terraform validation across the full configuration:
-     - `terraform fmt -recursive`
-     - `terraform init -backend=false` (if needed for validation)
-     - `terraform validate` must pass with no errors; Phase 2 MUST NOT complete until it does
-     - Save the validation output to `.code-docs/quality-reports/terraform-validate.log`
-   - Check for security vulnerabilities
-   - Ensure code follows AWS best practices
+   - Verify code follows AWS best practices (IaC validation completed in Step 3)
+   - Check for security vulnerabilities in dependencies and code
    - Store quality reports in `.code-docs/quality-reports/`
 
-8. **Log and Proceed**:
+8. **Log and Seek Approval**:
    - Log code generation with timestamp in `.code-docs/audit.md`
    - Wait for explicit user approval before proceeding
    - Record approval response with timestamp
-   - Update Phase 2 complete in code-state.md
+   - Update Phase 2 complete status in `.code-docs/code-state.md`
