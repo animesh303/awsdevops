@@ -49,6 +49,11 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
       
+      - name: Create Lambda deployment package
+        run: |
+          cd ../../src/lambda-s3-lambda-trigger
+          zip -r ../../iac/terraform/lambda_function.zip .
+      
       - name: Terraform Init
         run: terraform init
       
