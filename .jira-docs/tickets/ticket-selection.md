@@ -1,61 +1,67 @@
-# JIRA Ticket Selection
+# JIRA Ticket Selection Interface
 
 ## Available Tickets for Selection
 
-Please select a ticket by number or ticket key:
+**1. AWS-4 - Create a simple website**
+- **Type**: Task
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Create a simple website using AWS S3 bucket with a sample hello world page. Website should be publicly accessible.
 
-### AWS Project Tickets (Infrastructure Focus)
+**2. HK-9 - Basic Agent Runtime**
+- **Type**: Story
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: As a System Administrator I want to have a basic agent runtime that can receive and process requests So that the system can handle incoming incident reports
 
-**1. AWS-3** - Create three tier application using EC2, RDS, S3
-- **Status**: To Do | **Priority**: Medium | **Type**: Task
-- **Description**: Three tier application architecture with compute, database, and storage layers
+**3. HK-8 - AWS Infrastructure Setup**
+- **Type**: Story
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: As a DevOps Engineer I want to deploy the core AWS infrastructure using CDK So that the DRCA system has a solid foundation to build upon
 
-**2. AWS-2** - Set up AWS S3 website bucket with DynamoDB and SQS
-- **Status**: To Do | **Priority**: Medium | **Type**: Task  
-- **Description**: Static website hosting with supporting AWS services
+**4. HK-7 - Integration & Testing**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: End-to-end integration, testing, and performance optimization
 
-**3. AWS-1** - Create new Storage Layer
-- **Status**: To Do | **Priority**: Medium | **Type**: Task
-- **Description**: S3 bucket with access logging and Lambda SNS notifications
+**5. HK-6 - Observability & Monitoring**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Implement comprehensive logging, monitoring, and audit trails
 
-### HK Project Tickets (Agent System)
+**6. HK-5 - Safety & Human-in-the-Loop**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Build safety mechanisms and human approval workflows
 
-**4. HK-9** - Basic Agent Runtime
-- **Status**: To Do | **Priority**: Medium | **Type**: Story
-- **Description**: Agent runtime container with request/response handling
+**7. HK-4 - Resource Management**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Implement resource inventory and volunteer coordination
 
-**5. HK-8** - AWS Infrastructure Setup  
-- **Status**: To Do | **Priority**: Medium | **Type**: Story
-- **Description**: Core AWS infrastructure using CDK deployment
+**8. HK-3 - AI Reasoning & Decision Making**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Build the core AI agent with reasoning and tool integration
 
-**6. HK-7** - Integration & Testing
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: End-to-end integration and performance optimization
+**9. HK-2 - Data Ingestion & Processing**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Implement incident data collection and processing capabilities
 
-**7. HK-6** - Observability & Monitoring
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: Comprehensive logging, monitoring, and audit trails
-
-**8. HK-5** - Safety & Human-in-the-Loop
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: Safety mechanisms and human approval workflows
-
-**9. HK-4** - Resource Management
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: Resource inventory and volunteer coordination
-
-**10. HK-3** - AI Reasoning & Decision Making
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: Core AI agent with reasoning and tool integration
-
-**11. HK-2** - Data Ingestion & Processing
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: Incident data collection and processing capabilities
-
-**12. HK-1** - Core Agent Infrastructure
-- **Status**: To Do | **Priority**: Medium | **Type**: Epic
-- **Description**: Foundational AWS infrastructure and basic agent runtime
+**10. HK-1 - Core Agent Infrastructure**
+- **Type**: Epic
+- **Priority**: Medium
+- **Status**: To Do
+- **Description**: Establish the foundational AWS infrastructure and basic agent runtime
 
 ---
 
-**Please select a ticket by entering the number (1-12) or ticket key (e.g., AWS-3, HK-9):**
+**Please select a ticket by entering the number (1-10) or ticket key (e.g., AWS-4, HK-9):**
