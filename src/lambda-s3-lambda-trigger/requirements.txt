@@ -1,0 +1,5 @@
+# Python dependencies for S3 Lambda trigger
+# AWS-5 - Initial requirements - 2025-01-27
+
+# AWS SDK (included in Lambda runtime, but specified for local development)
+boto3>=1.26.0

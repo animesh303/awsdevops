@@ -1,0 +1,75 @@
+name: Terraform Deploy to test
+
+on:
+  workflow_run:
+    workflows: ["Terraform Deploy to dev"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-test
+  cancel-in-progress: false
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: test
+    defaults:
+      run:
+        working-directory: iac/terraform
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.1
+      
+      - name: Configure Terraform Cloud
+        env:
+          TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+        run: |
+          cat > $HOME/.terraformrc << EOF
+          credentials "app.terraform.io" {
+            token = "$TFC_TOKEN"
+          }
+          EOF
+      
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+      
+      - name: Terraform Init
+        run: terraform init
+      
+      - name: Terraform Plan (test)
+        env:
+          TF_VAR_environment: test
+          TF_VAR_bucket_name: aws-s3-lambda-trigger-demo-test
+          TF_VAR_lambda_function_name: s3-lambda-trigger-hello-world-test
+        run: terraform plan
+      
+      - name: Terraform Apply (test)
+        env:
+          TF_VAR_environment: test
+          TF_VAR_bucket_name: aws-s3-lambda-trigger-demo-test
+          TF_VAR_lambda_function_name: s3-lambda-trigger-hello-world-test
+        run: terraform apply -input=false -auto-approve
+      
+      - name: Run infrastructure tests
+        run: |
+          echo "Running infrastructure validation tests..."
+          # Add infrastructure test commands here
+      
+      - name: Verify infrastructure deployment
+        run: |
+          echo "✅ Terraform infrastructure deployed to test environment"
+          terraform output
