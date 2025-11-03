@@ -78,7 +78,6 @@ jobs:
 
   python-tests:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('tests/**/*.py') != '' }}
     
     steps:
       - uses: actions/checkout@v4
