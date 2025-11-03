@@ -55,10 +55,22 @@ resource "aws_s3_bucket_public_access_block" "website" {
   restrict_public_buckets = false
 }
 
+# Wait for public access block changes to propagate before applying bucket policy
+resource "time_sleep" "wait_for_public_access_block" {
+  depends_on = [aws_s3_bucket_public_access_block.website]
+
+  create_duration = "10s"
+}
+
 # S3 bucket policy for public read access
 resource "aws_s3_bucket_policy" "website" {
-  bucket     = aws_s3_bucket.website.id
-  depends_on = [aws_s3_bucket_public_access_block.website]
+  bucket = aws_s3_bucket.website.id
+
+  # Ensure public access block is updated and propagated before applying policy
+  depends_on = [
+    aws_s3_bucket_public_access_block.website,
+    time_sleep.wait_for_public_access_block
+  ]
 
   policy = jsonencode({
     Version = "2012-10-17"
