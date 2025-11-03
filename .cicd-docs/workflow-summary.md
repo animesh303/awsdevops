@@ -1,43 +1,97 @@
-# Generated Workflow Summary
+# Complete CI/CD Pipeline Summary
 
-## Workflow Files Generated
+## Generated Workflow Files
 
-### 1. terraform-ci.yml
+### 1. terraform-ci.yml (Existing)
 - **File**: `.github/workflows/terraform-ci.yml`
-- **Purpose**: Terraform CI pipeline with validation, planning, and security scanning
-- **Environments**: Terraform only (Python not detected)
+- **Purpose**: Continuous Integration - validation, planning, security scanning
+- **Triggers**: Push/PR on main, develop branches
+- **Jobs**: tf-validate, tf-plan, tf-security, tf-upload-sarif
 
-## Workflow Details
+### 2. terraform-deploy-dev.yml (New)
+- **File**: `.github/workflows/terraform-deploy-dev.yml`
+- **Purpose**: Deploy to Development environment
+- **Triggers**: terraform-ci.yml success on develop branch
+- **Environment**: dev
+- **Features**: Terraform apply, deployment verification
 
-### Triggers
-- **Push**: main, develop branches
-- **Pull Request**: main branch
-- **Path Filters**: iac/terraform/**, .github/workflows/terraform-ci.yml
+### 3. terraform-deploy-test.yml (New)
+- **File**: `.github/workflows/terraform-deploy-test.yml`
+- **Purpose**: Deploy to Test environment with integration testing
+- **Triggers**: terraform-deploy-dev.yml success on main branch
+- **Environment**: test
+- **Features**: Terraform apply, integration tests, health checks
 
-### Jobs Overview
-1. **tf-validate** - Format check, init, validate
-2. **tf-plan** - Terraform planning (depends on tf-validate)
-3. **tf-security** - Checkov security scanning (parallel)
-4. **tf-upload-sarif** - Upload security results (depends on tf-security)
+### 4. terraform-deploy-prod.yml (New)
+- **File**: `.github/workflows/terraform-deploy-prod.yml`
+- **Purpose**: Deploy to Production environment with smoke testing
+- **Triggers**: terraform-deploy-test.yml success on main branch
+- **Environment**: prod
+- **Features**: Terraform apply, smoke tests, deployment notifications
 
-### Security Features
-- AWS OIDC authentication
-- Checkov SARIF security scanning
-- Terraform Cloud backend support
-- Proper permissions (contents:read, security-events:write, id-token:write)
+## Pipeline Flow
 
-### Required Configuration
-- **Secrets**: AWS_ROLE_TO_ASSUME, TFC_TOKEN
-- **Variables**: AWS_REGION
-- **Terraform Version**: 1.1+
+### Development Flow (develop branch)
+```
+Code Push → terraform-ci.yml → terraform-deploy-dev.yml
+```
 
-## Artifacts Generated
-- Checkov SARIF results uploaded to GitHub Security tab
-- Terraform plan output (displayed in logs)
+### Production Flow (main branch)
+```
+Code Push → terraform-ci.yml → terraform-deploy-test.yml → terraform-deploy-prod.yml
+```
+
+## Security & Controls
+
+### Environment Protection
+- **dev**: Basic deployment (develop branch only)
+- **test**: Integration testing + health checks (main branch only)
+- **prod**: Production deployment + smoke tests (main branch only)
+
+### Branch Controls
+- **develop → dev**: Automatic deployment after CI success
+- **main → test**: Automatic deployment after CI success
+- **main → prod**: Automatic deployment after test success
+
+### Concurrency Control
+- Each environment has separate concurrency groups
+- Prevents overlapping deployments per environment
+- `cancel-in-progress: false` ensures safe deployments
+
+## Required Configuration
+
+### GitHub Secrets
+- `AWS_ROLE_TO_ASSUME` - AWS IAM role for OIDC authentication
+- `TFC_TOKEN` - Terraform Cloud authentication token
+
+### GitHub Variables
+- `AWS_REGION` - AWS region for deployments
+
+### GitHub Environments
+- **dev** - Development environment (optional approval)
+- **test** - Test environment (recommended approval)
+- **prod** - Production environment (required approval)
+
+## Testing Strategy
+
+### CI Stage (terraform-ci.yml)
+- Terraform validation and formatting
+- Security scanning with Checkov SARIF
+- Infrastructure planning
+
+### Test Stage (terraform-deploy-test.yml)
+- Integration testing via HTTP health checks
+- Website accessibility validation
+
+### Production Stage (terraform-deploy-prod.yml)
+- Smoke testing for critical functionality
+- Deployment success notifications
 
 ## Key Benefits
-- Automated security scanning
-- Infrastructure validation
-- Multi-environment support
-- Terraform Cloud integration
-- SARIF security reporting
+
+- **Automated Security**: Checkov SARIF scanning in CI
+- **Environment Isolation**: Separate deployment stages
+- **Quality Gates**: Testing at each stage
+- **Rollback Safety**: Terraform state management
+- **Audit Trail**: Complete deployment history
+- **Cost Control**: Environment-specific resource management

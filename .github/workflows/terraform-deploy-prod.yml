@@ -1,0 +1,77 @@
+name: Terraform Deploy to prod
+
+on:
+  workflow_run:
+    workflows: ["Terraform Deploy to test"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ~1.1
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure Terraform Cloud
+        env:
+          TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+        run: |
+          cat > $HOME/.terraformrc << EOF
+          credentials "app.terraform.io" {
+            token = "$TFC_TOKEN"
+          }
+          EOF
+
+      - name: Terraform Init
+        working-directory: iac/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: iac/terraform
+        run: terraform plan
+
+      - name: Terraform Apply
+        working-directory: iac/terraform
+        run: terraform apply -input=false -auto-approve
+
+      - name: Get Website URL
+        working-directory: iac/terraform
+        run: |
+          echo "WEBSITE_URL=$(terraform output -raw website_url)" >> $GITHUB_ENV
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment to prod environment completed"
+          echo "Website URL: ${{ env.WEBSITE_URL }}"
+
+      - name: Run Smoke Tests
+        run: |
+          echo "Running smoke tests against prod environment"
+          curl -f ${{ env.WEBSITE_URL }} || exit 1
+          echo "Smoke tests passed"
+
+      - name: Notify Deployment Success
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "Production Website: ${{ env.WEBSITE_URL }}"
