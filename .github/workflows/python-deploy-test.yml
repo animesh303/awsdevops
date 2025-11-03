@@ -1,0 +1,65 @@
+name: Python Deploy to test
+
+on:
+  workflow_run:
+    workflows: ["Python Deploy to dev"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-python-${{ github.ref }}-${{ github.workflow }}-test
+  cancel-in-progress: false
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: test
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f src/lambda-s3-lambda-trigger/requirements.txt ]; then pip install -r src/lambda-s3-lambda-trigger/requirements.txt; fi
+      
+      - name: Package Lambda function
+        run: |
+          cd src/lambda-s3-lambda-trigger
+          zip -r ../../lambda-function-test.zip .
+      
+      - name: Deploy Lambda function to test
+        run: |
+          aws lambda update-function-code \
+            --function-name s3-lambda-trigger-hello-world-test \
+            --zip-file fileb://lambda-function-test.zip
+      
+      - name: Upload Lambda package to S3 (test)
+        run: |
+          aws s3 cp lambda-function-test.zip s3://${{ vars.DEPLOYMENT_BUCKET }}/lambda/test/
+      
+      - name: Run integration tests
+        run: |
+          echo "Running integration tests in test environment..."
+          # Add integration test commands here
+      
+      - name: Verify deployment
+        run: |
+          aws lambda get-function --function-name s3-lambda-trigger-hello-world-test
+          echo "✅ Lambda function deployed to test environment"
