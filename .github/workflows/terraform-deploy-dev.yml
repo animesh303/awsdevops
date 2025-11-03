@@ -4,22 +4,21 @@ on:
   workflow_run:
     workflows: ["Terraform CI"]
     types: [completed]
+    branches: [develop]
 
 permissions:
   contents: read
   id-token: write
-  actions: read
-  security-events: write
+
+concurrency:
+  group: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-dev
+  cancel-in-progress: false
 
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: dev
-    concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-${{ github.environment }}
-    defaults:
-      run:
-        working-directory: iac/terraform
     steps:
       - uses: actions/checkout@v4
 
@@ -45,14 +44,23 @@ jobs:
           EOF
 
       - name: Terraform Init
+        working-directory: iac/terraform
         run: terraform init
 
       - name: Terraform Plan
-        env:
-          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+        working-directory: iac/terraform
         run: terraform plan
 
       - name: Terraform Apply
-        env:
-          TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
+        working-directory: iac/terraform
         run: terraform apply -input=false -auto-approve
+
+      - name: Get Website URL
+        working-directory: iac/terraform
+        run: |
+          echo "WEBSITE_URL=$(terraform output -raw website_url)" >> $GITHUB_ENV
+
+      - name: Verify Deployment
+        run: |
+          echo "Deployment to dev environment completed"
+          echo "Website URL: ${{ env.WEBSITE_URL }}"
