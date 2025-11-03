@@ -59,6 +59,14 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      - Place this step as one of the first steps in any job that performs AWS operations
      - Require the workflow to declare `permissions: id-token: write` (for OIDC) at the job or workflow level
 
+   - **Automation of Manual Steps (Mandatory):** All manual steps that can be automated MUST be included within the workflows. Common examples include:
+     - Uploading files to S3 buckets (e.g., website artifacts, build outputs, static assets)
+     - Syncing content between storage locations
+     - Copying or transferring files between services
+     - Running deployment scripts or commands that are typically done manually
+     - Any repetitive operational tasks that can be scripted
+     - These automated steps should be added as workflow jobs or steps with appropriate error handling and logging
+
 2. **Python Workflow Jobs:**
    - Define separate jobs (examples below) and run them in parallel when possible:
      - `python-lint` (matrix: 3.10, 3.11, 3.12): setup + Flake8 SARIF
@@ -102,7 +110,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
 
    - Define separate jobs and link with `needs:` where appropriate:
 
-     - `tf-validate`: pin version/cache; run `init`, `validate`. While using `terraform fmt` do not include `check` option.
+     - `tf-validate`: pin version/cache; run `init`, `validate`. **Important:** While using `terraform fmt` do not include `check` option.
      - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
      - `tf-security`: run Checkov with SARIF output. If checkov exits with a non-zero status when it finds issues, workflow should continue execution so the SARIF can still be uploaded. Set `continue-on-error: true` for the job.
      - `tf-upload-sarif`: `needs: [tf-security]`; download the SARIF. **Important:** upload `results_sarif.sarif` via CodeQL action. SARIF File name should always be `results_sarif.sarif`. Set `continue-on-error: true` for the job. Example:
@@ -183,7 +191,7 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
 
   - Files: `terraform-deploy-dev.yml`, `terraform-deploy-test.yml`, `terraform-deploy-prod.yml`
   - **Branch Trigger Requirements (Mandatory):**
-    - `terraform-deploy-dev.yml` MUST only trigger when the triggering CI workflow ran on the `develop` branch. Add `branches: [develop]` to the `workflow_run` trigger
+    - `terraform-deploy-dev.yml` MUST only trigger when the triggering CI workflow ran on the `develop` branch. Add `branches: [develop]` to the `workflow_run` trigger. Code checkout MUST happen only from `develop` branch to deploy. 
     - `terraform-deploy-test.yml` MUST only trigger when the triggering dev deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
     - `terraform-deploy-prod.yml` MUST only trigger when the triggering test deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
   - Common conventions:
