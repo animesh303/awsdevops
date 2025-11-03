@@ -23,15 +23,15 @@ jobs:
     defaults:
       run:
         working-directory: iac/terraform
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -41,19 +41,19 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+
       - name: Terraform Format
         run: terraform fmt -recursive
-      
+
       - name: Terraform Init
         run: terraform init
-      
+
       - name: Terraform Validate
         run: terraform validate
 
@@ -63,15 +63,15 @@ jobs:
     defaults:
       run:
         working-directory: iac/terraform
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -81,16 +81,16 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+
       - name: Terraform Init
         run: terraform init
-      
+
       - name: Terraform Plan
         run: terraform plan
 
@@ -100,23 +100,23 @@ jobs:
     defaults:
       run:
         working-directory: iac/terraform
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
-      
+
       - name: Install Checkov
         run: pip install checkov
-      
+
       - name: Run Checkov (SARIF)
         run: |
           checkov -d . --output-file-path results_sarif.sarif --output sarif
         continue-on-error: true
-      
+
       - name: Upload Checkov SARIF artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,16 +128,16 @@ jobs:
     needs: [tf-security]
     continue-on-error: true
     if: always()
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download SARIF artifacts
         uses: actions/download-artifact@v4
         with:
           name: checkov-sarif
           path: ./
-      
+
       - name: Verify SARIF file exists
         run: |
           if [ ! -f results_sarif.sarif ]; then
@@ -145,7 +145,7 @@ jobs:
             exit 0
           fi
           echo "SARIF file found at: results_sarif.sarif"
-      
+
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
         with:
