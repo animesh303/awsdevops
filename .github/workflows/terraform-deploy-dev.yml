@@ -22,6 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Terraform
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            iac/terraform/.terraform
+          key: terraform-${{ runner.os }}-${{ hashFiles('iac/terraform/.terraform.lock.hcl') }}
+          restore-keys: |
+            terraform-${{ runner.os }}-
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -55,12 +65,29 @@ jobs:
         working-directory: iac/terraform
         run: terraform apply -input=false -auto-approve
 
-      - name: Get Website URL
+      - name: Get Website Bucket Name
         working-directory: iac/terraform
         run: |
+          echo "BUCKET_NAME=$(terraform output -raw website_bucket_name)" >> $GITHUB_ENV
           echo "WEBSITE_URL=$(terraform output -raw website_url)" >> $GITHUB_ENV
 
-      - name: Verify Deployment
+      - name: Deploy Website Files to S3
         run: |
-          echo "Deployment to dev environment completed"
+          echo "Deploying website files to S3 bucket: ${{ env.BUCKET_NAME }}"
+          aws s3 sync src/website/ s3://${{ env.BUCKET_NAME }}/ --delete --cache-control "max-age=3600"
+          echo "Website deployment completed"
+
+      - name: Verify Website Deployment
+        run: |
+          echo "Verifying website deployment..."
+          sleep 10
+          curl -f ${{ env.WEBSITE_URL }} || exit 1
+          echo "✅ Website is accessible at: ${{ env.WEBSITE_URL }}"
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Dev Deployment Summary:"
+          echo "Environment: dev"
           echo "Website URL: ${{ env.WEBSITE_URL }}"
+          echo "S3 Bucket: ${{ env.BUCKET_NAME }}"
+          echo "Status: ✅ Success"

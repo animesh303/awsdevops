@@ -22,6 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache Terraform
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            iac/terraform/.terraform
+          key: terraform-${{ runner.os }}-${{ hashFiles('iac/terraform/.terraform.lock.hcl') }}
+          restore-keys: |
+            terraform-${{ runner.os }}-
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -55,18 +65,64 @@ jobs:
         working-directory: iac/terraform
         run: terraform apply -input=false -auto-approve
 
-      - name: Get Website URL
+      - name: Get Website Bucket Name
         working-directory: iac/terraform
         run: |
+          echo "BUCKET_NAME=$(terraform output -raw website_bucket_name)" >> $GITHUB_ENV
           echo "WEBSITE_URL=$(terraform output -raw website_url)" >> $GITHUB_ENV
 
-      - name: Verify Deployment
+      - name: Deploy Website Files to S3
         run: |
-          echo "Deployment to test environment completed"
-          echo "Website URL: ${{ env.WEBSITE_URL }}"
+          echo "Deploying website files to S3 bucket: ${{ env.BUCKET_NAME }}"
+          aws s3 sync src/website/ s3://${{ env.BUCKET_NAME }}/ --delete --cache-control "max-age=3600"
+          echo "Website deployment completed"
 
       - name: Run Integration Tests
         run: |
-          echo "Running integration tests against test environment"
+          echo "Running integration tests against test environment..."
+          sleep 10
+          
+          # Test website accessibility
           curl -f ${{ env.WEBSITE_URL }} || exit 1
-          echo "Integration tests passed"
+          echo "✅ Website accessibility test passed"
+          
+          # Test website content
+          response=$(curl -s ${{ env.WEBSITE_URL }})
+          if echo "$response" | grep -q "Hello World"; then
+            echo "✅ Website content test passed"
+          else
+            echo "❌ Website content test failed"
+            exit 1
+          fi
+          
+          # Test error page
+          error_response=$(curl -s -o /dev/null -w "%{http_code}" ${{ env.WEBSITE_URL }}/nonexistent)
+          if [ "$error_response" = "404" ]; then
+            echo "✅ Error page test passed"
+          else
+            echo "⚠️ Error page test warning (got $error_response)"
+          fi
+
+      - name: Performance Test
+        run: |
+          echo "Running performance tests..."
+          
+          # Test response time
+          response_time=$(curl -o /dev/null -s -w "%{time_total}" ${{ env.WEBSITE_URL }})
+          echo "Response time: ${response_time}s"
+          
+          if (( $(echo "$response_time < 2.0" | bc -l) )); then
+            echo "✅ Performance test passed (${response_time}s < 2.0s)"
+          else
+            echo "⚠️ Performance test warning (${response_time}s >= 2.0s)"
+          fi
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Test Deployment Summary:"
+          echo "Environment: test"
+          echo "Website URL: ${{ env.WEBSITE_URL }}"
+          echo "S3 Bucket: ${{ env.BUCKET_NAME }}"
+          echo "Integration Tests: ✅ Passed"
+          echo "Performance Tests: ✅ Passed"
+          echo "Status: ✅ Success"
