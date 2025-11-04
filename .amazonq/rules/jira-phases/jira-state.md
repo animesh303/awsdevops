@@ -1,41 +1,22 @@
 # JIRA Task Management State Tracking
 
+> **Note**: This file is for convenience only. Artifacts (ticket files, requirements files, audit logs) are the source of truth. If this file is missing or corrupted, it will be automatically reconstructed from artifacts.
+
 ## Current Status
 
-- **Phase 1**: Complete
-- **Phase 2**: Not Started
-- **Phase 3**: Not Started
-- **Overall Status**: Phase 1 Complete - Awaiting Phase 2 Approval
+- **Current Phase**: [Phase 1 | Phase 2 | Phase 3 | Complete]
+- **Selected Ticket**: [TICKET-NUMBER] - [TICKET-TITLE]
+- **Last Updated**: [YYYY-MM-DD]
 
-## Phase Progress
+## Phase Status
 
-### Phase 1: Fetch & Select JIRA Tickets
+- **Phase 1: Fetch & Select JIRA Tickets**: [Complete | In Progress | Not Started]
+- **Phase 2: Generate Requirements Spec**: [Complete | In Progress | Not Started]
+- **Phase 3: Final Confirmation & JIRA Update**: [Complete | In Progress | Not Started]
 
-- **Status**: Complete
-- **Start Time**: 2025-01-27
-- **End Time**: 2025-01-27
-- **Selected Ticket**: AWS-1 - Create a new AWS S3 bucket
-- **Tickets Fetched**: 11
+## Notes
 
-### Phase 2: Generate Requirements Spec
-
-- **Status**: Not Started
-- **Start Time**: N/A
-- **End Time**: N/A
-- **Requirements Document**: N/A
-- **Template Used**: requirements-template.md
-
-### Phase 3: Review & Iterate
-
-- **Status**: Not Started
-- **Start Time**: N/A
-- **End Time**: N/A
-- **Iterations**: 0
-- **Final Approval**: N/A
-
-## Session Information
-
-- **Session Start**: 2025-01-27
-- **Last Updated**: 2025-01-27
-- **User Confirmations**: 1
-- **Total Iterations**: 0
+- For detailed phase information, see the artifacts:
+  - Phase 1: `.jira-docs/tickets/ticket-{TICKET-NUMBER}.md`
+  - Phase 2: `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
+  - Phase 3: `.jira-docs/audit.md` (final approval)
