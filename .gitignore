@@ -3,8 +3,8 @@
 *.tfstate.*
 .terraform/
 *.tfplan
-*.tfvars
-!terraform.tfvars.example
+.terraform.lock.hcl
+terraform.tfvars
 
 # Python
 __pycache__/
@@ -49,6 +49,3 @@ MANIFEST
 # OS
 .DS_Store
 Thumbs.db
-
-# Lambda deployment packages
-*.zip
