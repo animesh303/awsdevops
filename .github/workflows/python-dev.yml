@@ -3,125 +3,169 @@ name: Python Dev
 on:
   push:
     branches: [develop]
+    paths:
+      - "src/**"
+      - ".github/workflows/python-dev.yml"
 
 permissions:
   contents: read
-  security-events: read
+  security-events: write
   id-token: write
+
+concurrency:
+  group: deploy-python-${{ github.ref }}-dev
+  cancel-in-progress: false
 
 jobs:
   python-lint:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
+      
       - name: Install dependencies
         run: |
           cd src/lambda-python-s3-lambda-trigger
           pip install -r requirements.txt
+      
       - name: Run Flake8 (SARIF)
         run: |
           pip install flake8 flake8-sarif
           cd src/lambda-python-s3-lambda-trigger
           flake8 . --format sarif --output-file flake8-results.sarif
+      
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: flake8-sarif-${{ matrix.python-version }}
           path: src/lambda-python-s3-lambda-trigger/flake8-results.sarif
+          retention-days: 1
 
   python-security:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.12
+          python-version: "3.12"
           cache: 'pip'
+      
       - name: Install dependencies
         run: |
           cd src/lambda-python-s3-lambda-trigger
           pip install -r requirements.txt
+      
       - name: Run Bandit (SARIF)
         run: |
           pip install bandit bandit-sarif-formatter
           cd src/lambda-python-s3-lambda-trigger
           bandit -r . -f sarif -o bandit-results.sarif || true
+      
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: bandit-sarif
           path: src/lambda-python-s3-lambda-trigger/bandit-results.sarif
+          retention-days: 1
 
   python-tests:
-    if: hashFiles('tests/**') != ''
     runs-on: ubuntu-latest
+    if: hashFiles('tests/**') != ''
     strategy:
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
+      
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
+      
       - name: Install dependencies
         run: |
           cd src/lambda-python-s3-lambda-trigger
           pip install -r requirements.txt
           pip install pytest pytest-cov
+      
       - name: Run tests
         run: |
           cd src/lambda-python-s3-lambda-trigger
           pytest tests/ --cov=. --cov-report=xml --cov-report=html
+      
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: |
+            src/lambda-python-s3-lambda-trigger/coverage.xml
+            src/lambda-python-s3-lambda-trigger/htmlcov/
+          retention-days: 1
 
   python-upload-sarif:
     needs: [python-lint, python-security]
     runs-on: ubuntu-latest
+    if: always()
     steps:
       - name: Download SARIF artifacts
         uses: actions/download-artifact@v4
         with:
           pattern: "*-sarif*"
           merge-multiple: true
-      - name: Upload SARIF
+      
+      - name: Upload Flake8 SARIF
         uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('flake8-results.sarif') != ''
         with:
           sarif_file: flake8-results.sarif
-        continue-on-error: true
+          category: flake8
+      
       - name: Upload Bandit SARIF
         uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('bandit-results.sarif') != ''
         with:
           sarif_file: bandit-results.sarif
-        continue-on-error: true
+          category: bandit
 
   deploy-dev:
     needs: [python-lint, python-security, python-tests, python-upload-sarif]
     runs-on: ubuntu-latest
+    if: always() && (needs.python-lint.result == 'success' && needs.python-security.result != 'failure' && (needs.python-tests.result == 'success' || needs.python-tests.result == 'skipped'))
     environment: dev
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          python-version: 3.12
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Build Lambda package
         run: |
           cd src/lambda-python-s3-lambda-trigger
-          zip -r ../../lambda-package.zip . -x "*.git*" "*.md" "tests/*"
+          zip -r lambda-package.zip . -x "*.git*" "*.md" "tests/*" "__pycache__/*" "*.pyc"
+      
       - name: Upload Lambda package artifact
         uses: actions/upload-artifact@v4
         with:
           name: lambda-package-dev
-          path: lambda-package.zip
+          path: src/lambda-python-s3-lambda-trigger/lambda-package.zip
           retention-days: 1
+      
+      - name: Deploy to development environment
+        run: |
+          echo "Deploying Python Lambda to dev environment"
+          echo "Lambda package ready for Terraform deployment"

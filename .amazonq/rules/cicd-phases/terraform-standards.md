@@ -32,6 +32,7 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
         }
         EOF
     ```
+    **Important:** Assume TFC_TOKEN is already set. Do not check for its existence using statements such as `if: ${{ secrets.TFC_TOKEN }}`.
   - Run `terraform init -backend=false`
   - Run `terraform validate`
   - Run `terraform fmt` (without `check` option)

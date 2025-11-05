@@ -47,3 +47,5 @@
 - **Last Updated**: N/A
 - **User Confirmations**: 0
 - **Total Iterations**: 0
+- **Is Regeneration**: false # Set to true if this is a regeneration request (previous workflows may be removed)
+- **Previous Session Archived**: N/A # Path to archived state file if this is a regeneration (e.g., ".cicd-docs/cicd-state-archived-2025-01-28T14:32:15Z.md")

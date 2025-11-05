@@ -12,21 +12,29 @@ Ensure CICD GitHub workflow generation can resume seamlessly if interrupted or a
 
 ## Detect Existing Session
 
-1. Check for `.cicd-docs/cicd-state.md` (preferred). If not found, check `.amazonq/rules/cicd-phases/cicd-state.md` (legacy).
-2. If present, read:
-   - `current_phase` (detect-plan | generate-workflow | review-confirm | complete)
-   - `detected_code_types` (list of all detected code types: python, terraform, javascript, java, go, docker, kubernetes, etc.)
-   - `existing_workflows` (list of existing workflow files and their status: keep/modify/remove)
-   - `generated_files` (list of workflow file paths: environment-specific workflows for each code type, e.g., `{code-type}-dev.yml`, `{code-type}-test.yml`, `{code-type}-prd.yml`)
-   - `pending_confirmation` (boolean/message)
-3. If absent, initialize `.cicd-docs/cicd-state.md` with `current_phase: detect-plan` and empty fields. Also create `.cicd-docs/audit.md`.
+1. **Check for Re-generation Request First**:
+   - If user explicitly requests "regenerate", "re-generate", "refresh", "update", or "recreate" workflows:
+     - Archive existing state (if present) by renaming `.cicd-docs/cicd-state.md` to `.cicd-docs/cicd-state-archived-{timestamp}.md`
+     - Create new `.cicd-docs/cicd-state.md` with `current_phase: detect-plan` and empty fields
+     - Log regeneration request in `.cicd-docs/audit.md` with timestamp
+     - Proceed as new session (skip existing session detection)
+2. **Normal Session Detection**:
+   - Check for `.cicd-docs/cicd-state.md` (preferred). If not found, check `.amazonq/rules/cicd-phases/cicd-state.md` (legacy).
+   - If present, read:
+     - `current_phase` (detect-plan | generate-workflow | review-confirm | complete)
+     - `detected_code_types` (list of all detected code types: python, terraform, javascript, java, go, docker, kubernetes, etc.)
+     - `existing_workflows` (list of existing workflow files and their status: keep/modify/remove)
+     - `generated_files` (list of workflow file paths: environment-specific workflows for each code type, e.g., `{code-type}-dev.yml`, `{code-type}-test.yml`, `{code-type}-prd.yml`)
+     - `pending_confirmation` (boolean/message)
+   - If absent, initialize `.cicd-docs/cicd-state.md` with `current_phase: detect-plan` and empty fields. Also create `.cicd-docs/audit.md`.
 
 ## Resume Logic
 
 - If `current_phase: detect-plan` → proceed with Phase 1 steps; on completion, set `current_phase: generate-workflow`.
 - If `current_phase: generate-workflow` → proceed with Phase 2; on completion, set `current_phase: review-confirm`.
 - If `current_phase: review-confirm` → proceed with Phase 3; on approval, set `current_phase: complete`.
-- If `current_phase: complete` → inform user CICD workflows are already finalized; offer to re-run or modify.
+- If `current_phase: complete` → inform user CICD workflows are already finalized; offer to re-run, modify, or regenerate.
+- If user selects option E (Regenerate) or explicitly requests regeneration → archive current state, create new session, start from Phase 1.
 
 ## Update State on Each Phase
 
@@ -62,8 +70,9 @@ A) Continue where you left off ([Next step description])
 B) Review detected environments and the plan
 C) Review generated workflow files
 D) Start over (re-run detection and planning)
+E) Regenerate workflows (create new session, previous workflows may be removed)
 
-Please select an option (A, B, C, or D):
+Please select an option (A, B, C, D, or E):
 
 ## Failure/Abort Handling
 

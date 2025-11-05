@@ -72,6 +72,7 @@ Provide the user with final review of the generated/updated CI/CD workflow files
 
    - List workflows that were modified and explain changes
    - List workflows that were removed and explain why
+   - **If this was a regeneration**: Clearly indicate that workflows were removed and regenerated fresh
    - Confirm all changes align with current codebase
 
 5. **User Confirmation:**

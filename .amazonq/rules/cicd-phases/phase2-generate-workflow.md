@@ -29,10 +29,14 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 2. **Analyze and Manage Existing Workflows:**
 
    - Review existing workflows in `.github/workflows/` directory
+   - **If this is a regeneration request**: Remove all existing workflows that match the pattern `{code-type}-{environment}.yml` (dev/test/prd) for detected code types, then regenerate them fresh
    - For each existing workflow:
-     - **Keep and Modify**: If it matches a detected code type and environment, update it to follow the new environment-specific structure
-     - **Remove**: If it doesn't match any detected code type or is obsolete
-   - Document all changes (modifications/removals) in the plan
+     - **Keep and Modify**: If it matches a detected code type and environment, AND this is NOT a regeneration request, update it to follow the new environment-specific structure
+     - **Remove**: If it doesn't match any detected code type, is obsolete, OR if this is a regeneration request (will be replaced with new workflows)
+   - **Removal Strategy**:
+     - For regeneration: Remove matching workflows first, then generate new ones
+     - For normal generation: Remove only obsolete workflows, modify existing ones
+   - Document all changes (modifications/removals) in the plan, including whether this is a regeneration
 
 3. **Read Language-Specific Standards:**
 

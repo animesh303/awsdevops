@@ -54,7 +54,9 @@ Scan repository comprehensively for ALL code types (Python, Terraform, JavaScrip
    - Scan `.github/workflows/` directory for existing workflow files
    - Identify which workflows are still relevant to current codebase
    - Identify which workflows are obsolete (no matching code types)
+   - **If this is a regeneration request**: Mark all existing workflows for removal and re-generation (they will be replaced with new environment-specific workflows)
    - Document existing workflow patterns and conventions
+   - **Document removal strategy**: List workflows that will be removed and why (e.g., "python-dev.yml will be removed and regenerated as part of regeneration request")
 
 4. **Identify Detected Code Types:**
 

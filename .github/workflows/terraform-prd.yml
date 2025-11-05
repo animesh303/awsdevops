@@ -2,14 +2,18 @@ name: Terraform Prod
 
 on:
   workflow_run:
-    workflows: ["Terraform Test"]
+    workflows: ["Terraform Test", "Python Prod"]
     types: [completed]
     branches: [main]
 
 permissions:
   contents: read
-  security-events: read
+  security-events: write
   id-token: write
+
+concurrency:
+  group: deploy-terraform-${{ github.ref }}-prod
+  cancel-in-progress: false
 
 jobs:
   tf-validate:
@@ -19,17 +23,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
+      
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Configure Terraform Cloud
-        if: ${{ secrets.TFC_TOKEN }}
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         run: |
@@ -38,37 +44,43 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      - name: Terraform Init
+      
+      - name: Terraform Init (backend=false)
         run: |
           cd iac/terraform
           terraform init -backend=false
+      
       - name: Terraform Validate
         run: |
           cd iac/terraform
           terraform validate
+      
       - name: Terraform Format
         run: |
           cd iac/terraform
           terraform fmt
 
   tf-plan:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     needs: [tf-validate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
+      
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Configure Terraform Cloud
-        if: ${{ secrets.TFC_TOKEN }}
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         run: |
@@ -77,10 +89,12 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
+      
       - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init
+      
       - name: Terraform Plan
         run: |
           cd iac/terraform
@@ -94,16 +108,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
+      
       - name: Run Checkov (SARIF)
         run: |
           pip install checkov
           cd iac/terraform
           checkov -d . --output-file-path results_sarif.sarif --output sarif
+      
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: checkov-sarif
           path: iac/terraform/results_sarif.sarif
+          retention-days: 1
 
   tf-upload-sarif:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -114,14 +131,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
+      
       - name: Download SARIF artifact
         uses: actions/download-artifact@v4
         with:
           name: checkov-sarif
+      
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('results_sarif.sarif') != ''
         with:
           sarif_file: results_sarif.sarif
+          category: checkov
 
   deploy-prod:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -132,17 +153,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
+      
+      - name: Download Lambda package from Python Prod workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package-prod
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./lambda-package
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
+      
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Configure Terraform Cloud
-        if: ${{ secrets.TFC_TOKEN }}
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         run: |
@@ -151,18 +182,26 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
+      
       - name: Set Lambda package path
         run: |
-          echo "TF_VAR_lambda_package_path=../src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
+          if [ -f "./lambda-package/lambda-package.zip" ]; then
+            echo "TF_VAR_lambda_package_path=./lambda-package/lambda-package.zip" >> $GITHUB_ENV
+          else
+            echo "TF_VAR_lambda_package_path=src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
+          fi
+      
       - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init
-      - name: Terraform Plan
+      
+      - name: Terraform Plan and Apply
         run: |
           cd iac/terraform
           terraform plan
-      - name: Terraform Apply
-        run: |
-          cd iac/terraform
           terraform apply -auto-approve
+      
+      - name: Deploy to production environment
+        run: |
+          echo "Terraform infrastructure deployed to production environment"

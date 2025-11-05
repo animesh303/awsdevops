@@ -7,11 +7,18 @@ on:
     branches: [main]
   push:
     branches: [main]
+    paths:
+      - "iac/terraform/**"
+      - ".github/workflows/terraform-test.yml"
 
 permissions:
   contents: read
-  security-events: read
+  security-events: write
   id-token: write
+
+concurrency:
+  group: deploy-terraform-${{ github.ref }}-test
+  cancel-in-progress: false
 
 jobs:
   tf-validate:
@@ -21,17 +28,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
+      
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Configure Terraform Cloud
-        if: ${{ secrets.TFC_TOKEN }}
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         run: |
@@ -40,14 +49,17 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      - name: Terraform Init
+      
+      - name: Terraform Init (backend=false)
         run: |
           cd iac/terraform
           terraform init -backend=false
+      
       - name: Terraform Validate
         run: |
           cd iac/terraform
           terraform validate
+      
       - name: Terraform Format
         run: |
           cd iac/terraform
@@ -60,17 +72,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
+      
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Configure Terraform Cloud
-        if: ${{ secrets.TFC_TOKEN }}
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         run: |
@@ -79,10 +93,12 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
+      
       - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init
+      
       - name: Terraform Plan
         run: |
           cd iac/terraform
@@ -95,16 +111,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+      
       - name: Run Checkov (SARIF)
         run: |
           pip install checkov
           cd iac/terraform
           checkov -d . --output-file-path results_sarif.sarif --output sarif
+      
       - name: Upload SARIF artifact
         uses: actions/upload-artifact@v4
         with:
           name: checkov-sarif
           path: iac/terraform/results_sarif.sarif
+          retention-days: 1
 
   tf-upload-sarif:
     needs: [tf-security]
@@ -115,38 +134,45 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: checkov-sarif
+      
       - name: Upload SARIF to GitHub
         uses: github/codeql-action/upload-sarif@v3
+        if: hashFiles('results_sarif.sarif') != ''
         with:
           sarif_file: results_sarif.sarif
+          category: checkov
 
   deploy-test:
     needs: [tf-validate, tf-plan, tf-security, tf-upload-sarif]
     runs-on: ubuntu-latest
+    if: always() && (needs.tf-validate.result == 'success' && needs.tf-plan.result == 'success' && needs.tf-security.result != 'failure')
     environment: test
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+      
       - name: Download Lambda package from upstream workflow
-        if: ${{ github.event_name == 'workflow_run' }}
+        if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@v4
         with:
           name: lambda-package-test
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lambda-package
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
+      
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
+      
       - name: Configure Terraform Cloud
-        if: ${{ secrets.TFC_TOKEN }}
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         run: |
@@ -155,22 +181,26 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
+      
       - name: Set Lambda package path
         run: |
           if [ -f "./lambda-package/lambda-package.zip" ]; then
             echo "TF_VAR_lambda_package_path=./lambda-package/lambda-package.zip" >> $GITHUB_ENV
           else
-            echo "TF_VAR_lambda_package_path=../src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
+            echo "TF_VAR_lambda_package_path=src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
           fi
+      
       - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init
-      - name: Terraform Plan
+      
+      - name: Terraform Plan and Apply
         run: |
           cd iac/terraform
           terraform plan
-      - name: Terraform Apply
-        run: |
-          cd iac/terraform
           terraform apply -auto-approve
+      
+      - name: Deploy to test environment
+        run: |
+          echo "Terraform infrastructure deployed to test environment"

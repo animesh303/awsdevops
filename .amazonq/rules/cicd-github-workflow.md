@@ -52,9 +52,16 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
    - Download artifacts from upstream workflows when needed
    - Example: Terraform deployment must wait for Python Lambda package to be built and uploaded
 
-## MANDATORY: Session Continuity
+## MANDATORY: Session Continuity and Re-generation
 
 **CRITICAL**: When detecting an existing CICD workflow generation project, you MUST read and follow the session continuity instructions from `cicd-phases/session-continuity.md` before proceeding with any phase.
+
+**Re-generation Support**: If the user explicitly requests to "regenerate", "re-generate", "refresh", or "update" workflows, you MUST:
+
+1. Create a new session (reset state files or create new session)
+2. Start from Phase 1 (detect and plan) regardless of existing session state
+3. Allow removal of previous workflows if they don't match current codebase
+4. Log the regeneration request in audit.md with timestamp
 
 ## MANDATORY: Custom Welcome Message
 
@@ -78,13 +85,18 @@ This focused approach ensures your codebase is production-ready with automated m
 
 ## Welcome
 
-1. **Display Custom Welcome Message**: Show the CICD welcome message above
-2. **Check for Existing Session**: Before proceeding, check for existing CICD workflow generation session by reading `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.md` (legacy)
-3. **If Existing Session Detected**: Follow session continuity instructions from `cicd-phases/session-continuity.md` and present "Welcome Back" prompt
-4. **If New Session**: Proceed with initial welcome
-5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
-6. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin detection and planning?**" - DO NOT PROCEED until user confirms
-7. **Log response with timestamp** - Record user response in `.cicd-docs/audit.md` after receiving it
+1. **Check for Re-generation Request**:
+   - If user explicitly mentions "regenerate", "re-generate", "refresh", "update", or "recreate" workflows, treat as regeneration request
+   - **Regeneration Request**: Create new session, reset/archive existing state, start fresh from Phase 1
+   - Log regeneration request in `.cicd-docs/audit.md` with timestamp and reason
+2. **Display Custom Welcome Message**: Show the CICD welcome message above
+3. **Check for Existing Session**: Before proceeding, check for existing CICD workflow generation session by reading `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.md` (legacy)
+   - **If Regeneration Request**: Skip existing session check, proceed directly to new session
+4. **If Existing Session Detected (and NOT regeneration)**: Follow session continuity instructions from `cicd-phases/session-continuity.md` and present "Welcome Back" prompt
+5. **If New Session or Regeneration**: Proceed with initial welcome, mention that previous workflows may be removed if they don't match current codebase
+6. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
+7. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin detection and planning?**" - DO NOT PROCEED until user confirms
+8. **Log response with timestamp** - Record user response in `.cicd-docs/audit.md` after receiving it
 
 # Custom CICD Workflow Generation Process (4-Phase Modular)
 
@@ -379,6 +391,7 @@ Use kebab-case, descriptive file names based on detected code types
 
 - **Language-Agnostic Detection**: Scan for ALL code types in the repository, not just Python/Terraform
 - **Existing Workflow Management**: Analyze existing workflows in `.github/workflows/` and modify or remove as needed
+- **Re-generation Support**: Allow complete re-generation of workflows; previous workflows may be removed if they don't match current codebase or detected code types
 - Always generate ONLY for detected code types
 - Ensure SARIF and code quality upload for all code types
 - **Environment-Specific Workflows**: Generate three separate workflow files per code type:
