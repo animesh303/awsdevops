@@ -1,0 +1,144 @@
+name: Python Prod
+
+on:
+  workflow_run:
+    workflows: ["Python Test"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: read
+  id-token: write
+
+jobs:
+  python-lint:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11, 3.12]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          cd src/lambda-python-s3-lambda-trigger
+          pip install -r requirements.txt
+      - name: Run Flake8 (SARIF)
+        run: |
+          pip install flake8 flake8-sarif
+          cd src/lambda-python-s3-lambda-trigger
+          flake8 . --format sarif --output-file flake8-results.sarif
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: flake8-sarif-${{ matrix.python-version }}
+          path: src/lambda-python-s3-lambda-trigger/flake8-results.sarif
+
+  python-security:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          cd src/lambda-python-s3-lambda-trigger
+          pip install -r requirements.txt
+      - name: Run Bandit (SARIF)
+        run: |
+          pip install bandit bandit-sarif-formatter
+          cd src/lambda-python-s3-lambda-trigger
+          bandit -r . -f sarif -o bandit-results.sarif || true
+      - name: Upload SARIF artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-sarif
+          path: src/lambda-python-s3-lambda-trigger/bandit-results.sarif
+
+  python-tests:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && hashFiles('tests/**') != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.10, 3.11, 3.12]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          cd src/lambda-python-s3-lambda-trigger
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+      - name: Run tests
+        run: |
+          cd src/lambda-python-s3-lambda-trigger
+          pytest tests/ --cov=. --cov-report=xml --cov-report=html
+
+  python-upload-sarif:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: [python-lint, python-security]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      - name: Download SARIF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-sarif*"
+          merge-multiple: true
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: flake8-results.sarif
+        continue-on-error: true
+      - name: Upload Bandit SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit-results.sarif
+        continue-on-error: true
+
+  deploy-prod:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: [python-lint, python-security, python-tests, python-upload-sarif]
+    runs-on: ubuntu-latest
+    environment: prod
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+      - name: Build Lambda package
+        run: |
+          cd src/lambda-python-s3-lambda-trigger
+          zip -r ../../lambda-package.zip . -x "*.git*" "*.md" "tests/*"
+      - name: Upload Lambda package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package-prod
+          path: lambda-package.zip
+          retention-days: 1

@@ -14,8 +14,12 @@
 - **Status**: Not Started
 - **Start Time**: N/A
 - **End Time**: N/A
-- **Detected Environments**: N/A
-- **Planned Workflows**: 0
+- **Detected Code Types**: []
+- **Requirements Files Loaded**: [] # List of requirements files loaded from .code-docs/requirements/ or .requirements/
+- **Dependency Map**: [] # Structured format: [{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}, ...]
+- **Artifact Requirements**: [] # Map of artifact types needed: [{code-type: "terraform", needs: ["lambda-package.zip"], from: "python"}, ...]
+- **Existing Workflows**: [] # List of existing workflow files with status: [{path: ".github/workflows/xxx.yml", status: "keep|modify|remove"}, ...]
+- **Planned Workflows**: 0 # Count of environment-specific workflows to generate (3 per code type)
 
 ### Phase 2: Generate Workflows
 
@@ -23,6 +27,9 @@
 - **Start Time**: N/A
 - **End Time**: N/A
 - **Generated Files**: 0
+- **Environment-Specific Workflows**: [] # Three workflow files per code type (dev/test/prd)
+- **Modified Workflows**: []
+- **Removed Workflows**: []
 - **Lint/Scan Tools Run**: []
 - **SARIF Uploads**: 0
 

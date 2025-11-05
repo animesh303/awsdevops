@@ -2,51 +2,364 @@
 
 ## Purpose
 
-Render GitHub Actions workflow files (YAML) matched to detected code environments, ensuring all required CI/CD and code scanning steps are present. Generate a comprehensive set of workflows covering Continuous Integration (CI) and Continuous Delivery (CD) to `dev`, `test`, and `prod` with explicit dependencies between stages. Provide a content preview.
+Render GitHub Actions workflow files (YAML) for ALL detected code types as **three separate workflow files per environment** (dev, test, prd). Each workflow contains CI jobs and deployment job for that specific environment. **Handle dependencies between code artifacts** (from requirements analysis) by enforcing workflow execution order and artifact passing. Ensure all required CI/CD and code scanning steps are present. Handle existing workflows by modifying or removing as needed.
+
+## Plan Document Location
+
+**CRITICAL**: Plan documents are created in `.cicd-docs/` directory (preferred) or `.amazonq/rules/cicd-phases/` (legacy fallback):
+
+- Workflow generation plan: `.cicd-docs/workflow-generation-plan.md` (or `.cicd-docs/phase2-plan.md`)
 
 ## Steps
 
-1. **Generate Workflows Per Detected Language/Tool:**
+1. **Load Dependency Information from Phase 1:**
 
-   - For each detected (Python/Terraform), generate a CI workflow and separate CD workflows per environment:
-     - CI: `.github/workflows/{stack}-ci.yml`
-     - CD: `.github/workflows/{stack}-deploy-dev.yml`, `.github/workflows/{stack}-deploy-test.yml`, `.github/workflows/{stack}-deploy-prod.yml`
-   - Organize workflow logic into multiple jobs with clear dependencies using `needs:`; avoid one giant job. Prefer fast-fail by running independent jobs in parallel
-   - Enforce cross-workflow stage order using `workflow_run` triggers and environment gates:
-     - `*-deploy-dev.yml` runs on successful completion of `{stack} CI`
-     - `*-deploy-test.yml` runs on successful completion of `{stack} Deploy to dev`
-     - `*-deploy-prod.yml` runs on successful completion of `{stack} Deploy to test`
-   - Use GitHub `environments` (`dev`, `test`, `prod`) with protection rules/approvals for promotion gates
-   - Prefer using CI-produced artifacts (e.g., Terraform plan, build artifacts, container images) and download them in CD workflows
-   - **Terraform Cloud Remote Backend Limitation:** When Terraform Cloud is used as the remote backend, plan output files are NOT supported. Skip plan artifact upload/download and any actions that depend on plan files in workflows using Terraform Cloud.
-   - Workflows that upload SARIF results MUST declare permissions with at least:
+   - **Read Dependency Map**:
 
-     - Top-level or job-level `permissions` including `security-events: read`
-     - Example (top-level):
+     - Load dependency relationships from Phase 1 plan document
+     - Load dependency map from `.cicd-docs/cicd-state.md` if available
+     - Understand which code types depend on others (e.g., `terraform → depends on → python`)
 
+   - **Identify Artifact Requirements**:
+     - For each dependency, identify what artifacts need to be passed
+     - Example: Terraform needs Python Lambda zip file location
+     - Example: Kubernetes needs Docker image tag
+     - Document artifact types: zip files, Docker images, build artifacts, etc.
+
+2. **Analyze and Manage Existing Workflows:**
+
+   - Review existing workflows in `.github/workflows/` directory
+   - For each existing workflow:
+     - **Keep and Modify**: If it matches a detected code type and environment, update it to follow the new environment-specific structure
+     - **Remove**: If it doesn't match any detected code type or is obsolete
+   - Document all changes (modifications/removals) in the plan
+
+3. **Read Language-Specific Standards:**
+
+   - For each detected code type, read the corresponding standards file:
+     - `.amazonq/rules/cicd-phases/{code-type}-standards.md`
+   - If standards file does not exist, create it following the pattern of existing standards files
+   - **CRITICAL**: Use the complete content from the standards file - do not summarize or paraphrase
+
+4. **Generate Environment-Specific Workflows Per Detected Code Type:**
+
+   **IMPORTANT**: When generating workflows, respect dependency order. Workflows that depend on others must:
+
+   - Use `workflow_run` triggers to wait for upstream workflows to complete
+   - Download artifacts from upstream workflows when needed
+   - Reference artifact locations (paths, URLs, tags) from upstream workflows
+
+   For each detected code type, generate **three separate workflow files**:
+
+   **Deploy to Dev Workflow** (`.github/workflows/{code-type}-dev.yml`):
+
+   - **Workflow Trigger**:
+     - **If no dependencies**: Trigger on push to `develop` branch
        ```yaml
-       permissions:
-         contents: read
-         security-events: read
+       on:
+         push:
+           branches: [develop]
+       ```
+     - **If has dependencies**: Trigger via `workflow_run` to wait for upstream workflows, OR allow push trigger as fallback
+       ```yaml
+       on:
+         workflow_run:
+           workflows: ["{Upstream Code Type} Dev"] # Wait for upstream
+           types: [completed]
+           branches: [develop]
+         push:
+           branches: [develop] # Fallback trigger
+       ```
+     - **Note**: GitHub Actions doesn't support conditions at workflow trigger level. Conditions must be at job level. If using `workflow_run`, add condition check at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
+   - **CI Jobs**:
+
+     - Lint, test, security scan, artifact generation
+     - Organize workflow logic into multiple jobs with clear dependencies using `needs:`
+     - Prefer fast-fail by running independent jobs in parallel
+     - Upload SARIF results and build artifacts
+     - Follow patterns from `{code-type}-standards.md`
+
+   - **Deploy to Dev Job**:
+     - **Needs**: All CI jobs must succeed
+     - **Dependency Handling**:
+       - If this code type depends on others, add `workflow_run` trigger to wait for upstream workflows
+       - Download artifacts from upstream workflows (e.g., Lambda zip from Python workflow)
+       - Pass artifact information (paths, URLs, tags) to deployment steps
+     - Deploys to Development environment
+     - Uses GitHub `environment: dev` for secrets and protection rules
+     - Downloads CI artifacts if needed for deployment
+     - **Upload deployment artifacts** for downstream workflows (if this code type is a dependency)
+     - Follow patterns from `{code-type}-standards.md`
+
+   **Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
+
+   - **Workflow Trigger**:
+     - **If no dependencies**: Trigger on push to `main` branch
+       ```yaml
+       on:
+         push:
+           branches: [main]
+       ```
+     - **If has dependencies**: Trigger via `workflow_run` to wait for upstream workflows, OR allow push trigger as fallback
+       ```yaml
+       on:
+         workflow_run:
+           workflows: ["{Upstream Code Type} Test"] # Wait for upstream
+           types: [completed]
+           branches: [main]
+         push:
+           branches: [main] # Fallback trigger
+       ```
+     - **Note**: GitHub Actions doesn't support conditions at workflow trigger level. Conditions must be at job level. If using `workflow_run`, add condition check at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
+   - **CI Jobs**:
+
+     - Lint, test, security scan, artifact generation
+     - Organize workflow logic into multiple jobs with clear dependencies using `needs:`
+     - Prefer fast-fail by running independent jobs in parallel
+     - Upload SARIF results and build artifacts
+     - Follow patterns from `{code-type}-standards.md`
+     - **Checkout Step**: For push triggers, standard checkout is sufficient. For workflow_run triggers, checkout from triggering workflow branch:
+       ```yaml
+       - uses: actions/checkout@v4
+         # For workflow_run: add with: ref: ${{ github.event.workflow_run.head_branch }}
        ```
 
-   - If a workflow uses `paths` filters under `on.push`/`on.pull_request`, always include the workflow file itself to trigger on workflow edits. Example:
+   - **Deploy to Test Job**:
+     - **Needs**: All CI jobs must succeed
+     - **Dependency Handling**:
+       - If this code type depends on others, ensure upstream workflows completed successfully
+       - Download artifacts from upstream workflows (e.g., Lambda zip from Python workflow)
+       - Pass artifact information to deployment steps
+     - Deploys to Test environment
+     - Uses GitHub `environment: test` for secrets and protection rules
+     - Downloads CI artifacts if needed for deployment
+     - **Upload deployment artifacts** for downstream workflows (if this code type is a dependency)
+     - Follow patterns from `{code-type}-standards.md`
 
+   **Deploy to Prod Workflow** (`.github/workflows/{code-type}-prd.yml`):
+
+   - **Workflow Trigger**:
      ```yaml
      on:
-       push:
-         branches: [main, develop]
-         paths:
-           - "iac/terraform/**"
-           - ".github/workflows/terraform-ci.yml"
-       pull_request:
+       workflow_run:
+         workflows: ["{Code Type} Test"]
+         types: [completed]
          branches: [main]
-         paths:
-           - "iac/terraform/**"
-           - ".github/workflows/terraform-ci.yml"
+     ```
+   - **Condition Check**:
+     ```yaml
+     jobs:
+       deploy:
+         if: ${{ github.event.workflow_run.conclusion == 'success' }}
+     ```
+   - **CI Jobs**:
+
+     - Lint, test, security scan, artifact generation
+     - Organize workflow logic into multiple jobs with clear dependencies using `needs:`
+     - Prefer fast-fail by running independent jobs in parallel
+     - Upload SARIF results and build artifacts
+     - Follow patterns from `{code-type}-standards.md`
+     - **CRITICAL - Checkout Step**: EVERY job (CI and deployment) MUST have checkout as the FIRST step:
+       ```yaml
+       - uses: actions/checkout@v4
+         with:
+           ref: ${{ github.event.workflow_run.head_branch }}
+       ```
+       This is required because `workflow_run` triggers don't automatically checkout code
+
+   - **Deploy to Prod Job**:
+     - **Needs**: All CI jobs must succeed
+     - **Dependency Handling**:
+       - If this code type depends on others, ensure upstream workflows completed successfully
+       - Download artifacts from upstream workflows (e.g., Lambda zip from Python workflow)
+       - Pass artifact information to deployment steps
+     - Deploys to Production environment
+     - Uses GitHub `environment: prod` with protection rules/approvals for promotion gates
+     - Downloads CI artifacts if needed for deployment
+     - **Upload deployment artifacts** for downstream workflows (if this code type is a dependency)
+     - Follow patterns from `{code-type}-standards.md`
+     - Protected with GitHub environment protection rules
+
+5. **Workflow Structure Requirements:**
+
+   - **Dev Workflow Structure Example:**
+
+     ```yaml
+     name: {Code Type} Dev
+
+     on:
+       push:
+         branches: [develop]
+
+     permissions:
+       contents: read
+       security-events: read
+       id-token: write  # For OIDC if needed
+
+     jobs:
+       # CI Jobs
+       lint:
+         runs-on: ubuntu-latest
+         steps:
+           # ... lint steps from standards file
+
+       security:
+         runs-on: ubuntu-latest
+         steps:
+           # ... security scan steps from standards file
+
+       tests:
+         runs-on: ubuntu-latest
+         if: hashFiles('tests/**') != ''
+         steps:
+           # ... test steps from standards file
+
+       upload-sarif:
+         needs: [lint, security]
+         runs-on: ubuntu-latest
+         steps:
+           # ... SARIF upload steps from standards file
+
+       # Deployment Job
+       deploy-dev:
+         needs: [lint, security, tests, upload-sarif]
+         runs-on: ubuntu-latest
+         environment: dev
+         steps:
+           # ... deployment steps from standards file
      ```
 
-   - **AWS Credentials Configuration (Mandatory):** If any workflow step requires AWS CLI credentials (e.g., Terraform CLI commands that interact with AWS), the workflow MUST include a step to configure AWS credentials via OIDC before any AWS-dependent operations:
+   - **Test Workflow Structure Example:**
+
+     ```yaml
+     name: {Code Type} Test
+
+     on:
+       push:
+         branches: [main]
+
+     permissions:
+       contents: read
+       security-events: read
+       id-token: write  # For OIDC if needed
+
+     jobs:
+       # CI Jobs (must be separate jobs, not steps)
+       lint:
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           # ... lint steps from standards file
+
+       security:
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           # ... security scan steps from standards file
+
+       tests:
+         if: hashFiles('tests/**') != ''
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           # ... test steps from standards file
+
+       upload-sarif:
+         needs: [lint, security]
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+           # ... SARIF upload steps from standards file
+
+       # Deployment Job
+       deploy-test:
+         needs: [lint, security, tests, upload-sarif]
+         runs-on: ubuntu-latest
+         environment: test
+         steps:
+           - uses: actions/checkout@v4
+           # ... deployment steps from standards file
+     ```
+
+   - **Prod Workflow Structure Example:**
+
+     ```yaml
+     name: {Code Type} Prod
+
+     on:
+       workflow_run:
+         workflows: ["{Code Type} Test"]
+         types: [completed]
+         branches: [main]
+
+     permissions:
+       contents: read
+       security-events: read
+       id-token: write  # For OIDC if needed
+
+     jobs:
+       # CI Jobs (must be separate jobs, not steps)
+       lint:
+         if: ${{ github.event.workflow_run.conclusion == 'success' }}
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+             with:
+               ref: ${{ github.event.workflow_run.head_branch }}
+           # ... lint steps from standards file
+
+       security:
+         if: ${{ github.event.workflow_run.conclusion == 'success' }}
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+             with:
+               ref: ${{ github.event.workflow_run.head_branch }}
+           # ... security scan steps from standards file
+
+       tests:
+         if: ${{ github.event.workflow_run.conclusion == 'success' && hashFiles('tests/**') != '' }}
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+             with:
+               ref: ${{ github.event.workflow_run.head_branch }}
+           # ... test steps from standards file
+
+       upload-sarif:
+         if: ${{ github.event.workflow_run.conclusion == 'success' }}
+         needs: [lint, security]
+         runs-on: ubuntu-latest
+         steps:
+           - uses: actions/checkout@v4
+             with:
+               ref: ${{ github.event.workflow_run.head_branch }}
+           # ... SARIF upload steps from standards file
+
+       # Deployment Job
+       deploy-prod:
+         if: ${{ github.event.workflow_run.conclusion == 'success' }}
+         needs: [lint, security, tests, upload-sarif]
+         runs-on: ubuntu-latest
+         environment: prod
+         steps:
+           - uses: actions/checkout@v4
+             with:
+               ref: ${{ github.event.workflow_run.head_branch }}
+           # ... deployment steps from standards file
+     ```
+
+   - **Permissions for SARIF Upload:**
+     Workflows that upload SARIF results MUST declare permissions:
+
+     ```yaml
+     permissions:
+       contents: read
+       security-events: read
+     ```
+
+   - **AWS Credentials Configuration (Mandatory for AWS-related workflows):**
+     If any workflow step requires AWS CLI credentials, include OIDC configuration:
 
      ```yaml
      - name: Configure AWS credentials via OIDC
@@ -57,203 +370,161 @@ Render GitHub Actions workflow files (YAML) matched to detected code environment
      ```
 
      - Place this step as one of the first steps in any job that performs AWS operations
-     - Require the workflow to declare `permissions: id-token: write` (for OIDC) at the job or workflow level
+     - Require `permissions: id-token: write` at the workflow level
 
-   - **Automation of Manual Steps (Mandatory):** All manual steps that can be automated MUST be included within the workflows. Common examples include:
-     - Uploading files to S3 buckets (e.g., website artifacts, build outputs, static assets)
+   - **Path Filters:**
+     If a workflow uses `paths` filters, always include the workflow file itself:
+
+     ```yaml
+     on:
+       push:
+         branches: [develop]
+         paths:
+           - "src/**"
+           - ".github/workflows/{code-type}-dev.yml"
+     ```
+
+   - **Concurrency Control:**
+     Use concurrency groups to avoid overlapping deployments per environment:
+
+     ```yaml
+     concurrency:
+       group: deploy-{code-type}-${{ github.ref }}-${{ github.environment }}
+       cancel-in-progress: false
+     ```
+
+   - **Automation of Manual Steps (Mandatory):**
+     All manual steps that can be automated MUST be included:
+
+     - Uploading files to S3 buckets
      - Syncing content between storage locations
      - Copying or transferring files between services
-     - Running deployment scripts or commands that are typically done manually
-     - Any repetitive operational tasks that can be scripted
-     - These automated steps should be added as workflow jobs or steps with appropriate error handling and logging
+     - Running deployment scripts or commands
+     - Any repetitive operational tasks
 
-2. **Python Workflow Jobs:**
-   - Define separate jobs (examples below) and run them in parallel when possible:
-     - `python-lint` (matrix: 3.10, 3.11, 3.12): setup + Flake8 SARIF
-     - `python-security` (matrix optional): setup + Bandit SARIF
-     - `python-tests` (conditional on `tests/`): setup + pytest + coverage artifact
-     - `python-upload-sarif`: `needs: [python-lint, python-security]`, upload SARIF files
-   - Ensure SARIF files exist before upload; fail the job if missing
-   - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions)
+   - **Dependency Handling Patterns:**
 
-- Python CD Workflows (if deployment is applicable):
-  - Files: `python-deploy-dev.yml`, `python-deploy-test.yml`, `python-deploy-prod.yml`
-  - **Branch Trigger Requirements (Mandatory):**
-    - `deploy-dev` workflow MUST only trigger when the triggering CI workflow ran on the `develop` branch. Add `branches: [develop]` to the `workflow_run` trigger
-    - `deploy-test` workflow MUST only trigger when the triggering dev deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
-    - `deploy-prod` workflow MUST only trigger when the triggering test deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
-  - Triggers:
-    - `deploy-dev` uses `workflow_run` on `{stack} CI` success
-    - `deploy-test` uses `workflow_run` on `{stack} Deploy to dev` success
-    - `deploy-prod` uses `workflow_run` on `{stack} Deploy to test` success
-  - Example `workflow_run` trigger with branch filter for dev:
-    ```yaml
-    on:
-      workflow_run:
-        workflows: ["Python CI"]
-        types: [completed]
-        branches: [develop]
-    ```
-  - Example `workflow_run` trigger with branch filter for test/prod:
-    ```yaml
-    on:
-      workflow_run:
-        workflows: ["Python Deploy to dev"]
-        types: [completed]
-        branches: [main]
-    ```
-  - Use `environment: dev|test|prod` for approvals and secrets scoping
-  - Typical steps (adapt to project): download build artifact, build/push image (if applicable), deploy to target (e.g., Kubernetes, VM, serverless)
-  - Set `concurrency` to avoid overlapping deploys per environment
+     **When Code Type A depends on Code Type B** (e.g., Terraform depends on Python Lambda):
 
-3. **Terraform Workflow Jobs:**
+     **Upstream Workflow (Code Type B - Python)**:
 
-   - Define separate jobs and link with `needs:` where appropriate:
-
-     - `tf-validate`: pin version/cache; run `init`, `validate`. **Important:** While using `terraform fmt` do not include `check` option.
-     - `tf-plan`: `needs: [tf-validate]`; run `plan` only (do NOT upload plan artifact if Terraform Cloud is the remote backend, as plan output is not supported)
-     - `tf-security`: run Checkov with SARIF output. If checkov exits with a non-zero status when it finds issues, workflow should continue execution so the SARIF can still be uploaded. Set `continue-on-error: true` for the job.
-     - `tf-upload-sarif`: `needs: [tf-security]`; download the SARIF. **Important:** upload `results_sarif.sarif` via CodeQL action. SARIF File name should always be `results_sarif.sarif`. Set `continue-on-error: true` for the job. Example:
-
+     - Build and package artifacts (e.g., Lambda zip file)
+     - Upload artifacts using `actions/upload-artifact@v4`:
        ```yaml
-       tf-upload-sarif:
-         runs-on: ubuntu-latest
-         needs: [tf-security]
-         continue-on-error: true
-         steps:
-           - uses: actions/checkout@v4
-
-           - name: Download SARIF artifacts
-             uses: actions/download-artifact@v4
-             with:
-               name: checkov-sarif
-               path: ./
-
-           - name: Verify SARIF file exists
-             run: |
-               if [ ! -f results_sarif.sarif ]; then
-                 echo "SARIF file not found, skipping upload"
-                 exit 0
-               fi
-               echo "SARIF file found at: results_sarif.sarif"
-
-           - name: Upload SARIF to GitHub
-             uses: github/codeql-action/upload-sarif@v3
-             with:
-               sarif_file: results_sarif.sarif
+       - name: Upload Lambda package
+         uses: actions/upload-artifact@v4
+         with:
+           name: lambda-package
+           path: lambda-package.zip
+           retention-days: 1
        ```
+     - Or upload to S3/container registry for cross-workflow access
+     - Export artifact information (paths, URLs, tags) as workflow outputs or environment variables
 
-   - **Terraform Version Requirement (Mandatory):** If a workflow contains any Terraform CLI commands (`terraform init/validate/plan/apply`), the workflow MUST use Terraform version 1.1 or later. When using `hashicorp/setup-terraform@v3` or similar actions, specify `terraform_version: ~1.1` or `terraform_version: ^1.1` (minimum 1.1). Example:
+     **Downstream Workflow (Code Type A - Terraform)**:
 
-     ```yaml
-     - name: Setup Terraform
-       uses: hashicorp/setup-terraform@v3
-       with:
-         terraform_version: ~1.1
-     ```
+     - Add `workflow_run` trigger to wait for upstream workflow:
+       ```yaml
+       on:
+         workflow_run:
+           workflows: ["Python Dev"] # Wait for Python workflow
+           types: [completed]
+           branches: [develop]
+       ```
+     - Download artifacts from upstream workflow:
+       ```yaml
+       - name: Download Lambda package from upstream workflow
+         uses: actions/download-artifact@v4
+         with:
+           name: lambda-package
+           run-id: ${{ github.event.workflow_run.id }}
+           github-token: ${{ secrets.GITHUB_TOKEN }}
+       ```
+     - Or download from S3/container registry if artifacts were stored there
+     - Use artifact information in deployment steps (e.g., pass Lambda zip path to Terraform)
 
-     **Important:** Do NOT use `~1.0` or any version below 1.1. This applies to ALL Terraform jobs (CI and CD workflows).
+     **Multiple Dependencies**:
 
-   - **AWS Credentials:** Since Terraform workflows typically interact with AWS, ALL Terraform jobs MUST include the "Configure AWS credentials via OIDC" step (see Step 1) before any `terraform init/validate/plan/apply` commands. The job must declare `permissions: id-token: write` for OIDC to work.
-   - For any Terraform CLI step (`terraform init/validate/plan/apply`), set the Terraform Cloud token environment variable and .terraformrc once the job level:
+     - If a code type depends on multiple others, use `workflow_run` triggers for all upstream workflows:
+       ```yaml
+       on:
+         workflow_run:
+           workflows: ["Python Dev", "Docker Dev"] # Wait for all upstream workflows
+           types: [completed]
+           branches: [develop]
+       ```
+     - **Important**: When multiple `workflow_run` triggers exist, `github.event.workflow_run.id` refers to the workflow that triggered this run. To download artifacts from specific upstream workflows:
+       - Option 1: Use workflow outputs/environment variables from upstream workflows to pass artifact information
+       - Option 2: Store artifacts in S3/container registry with predictable naming and download from there
+       - Option 3: Use GitHub API to find the specific workflow run ID for each dependency
+     - Download artifacts from all upstream workflows
+     - Combine artifacts as needed for deployment
 
-     ```yaml
-     - name: Configure Terraform Cloud
-       env:
-         TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
-       run: |
-         cat > $HOME/.terraformrc << EOF
-         credentials "app.terraform.io" {
-           token = "$TFC_TOKEN"
-         }
-         EOF
-     ```
+     **Artifact Passing Methods** (prioritized by use case):
 
-     Example:
+     1. **GitHub Actions Artifacts** (Preferred for same-run dependencies):
 
-     ```yaml
-     - name: Configure Terraform Cloud
-       env:
-         TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
-       run: |
-         cat > $HOME/.terraformrc << EOF
-         credentials "app.terraform.io" {
-           token = "$TFC_TOKEN"
-         }
-         EOF
-     ```
+        - Use `actions/upload-artifact@v4` and `actions/download-artifact@v4`
+        - Works within same workflow run
+        - Limited retention (default 1 day, configurable up to 90 days)
+        - Use when artifacts are consumed within short time window
 
-   - Ensure `iac/terraform/checkov-results.sarif` exists before upload; fail if missing
-   - Upload SARIF using `github/codeql-action/upload-sarif@v3` (requires `security-events: read` permissions). The artifact is uploaded with path iac/terraform/checkov-results.sarif, so when downloaded it preserves that structure. The file will be at iac/terraform/checkov-results.sarif.
-   - **Terraform Plan Artifact:** Do NOT upload Terraform plan as artifact when Terraform Cloud is used as the remote backend (plan output is not supported by Terraform Cloud). Only upload plan artifacts if using other backends (e.g., S3, local).
+     2. **Cross-Workflow Artifacts** (Preferred for workflow_run triggers with single dependency):
 
-- Terraform CD Workflows (separate files):
+        - Use `actions/download-artifact@v4` with `run-id` and `github-token`
+        - Works for `workflow_run` triggers when downloading from the triggering workflow
+        - **Limitation**: When multiple dependencies exist, `github.event.workflow_run.id` only refers to one workflow
+        - Use when single upstream dependency and artifacts consumed quickly
 
-  - Files: `terraform-deploy-dev.yml`, `terraform-deploy-test.yml`, `terraform-deploy-prod.yml`
-  - **Branch Trigger Requirements (Mandatory):**
-    - `terraform-deploy-dev.yml` MUST only trigger when the triggering CI workflow ran on the `develop` branch. Add `branches: [develop]` to the `workflow_run` trigger. Code checkout MUST happen only from `develop` branch to deploy. 
-    - `terraform-deploy-test.yml` MUST only trigger when the triggering dev deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
-    - `terraform-deploy-prod.yml` MUST only trigger when the triggering test deployment workflow ran on the `main` branch. Add `branches: [main]` to the `workflow_run` trigger
-  - Common conventions:
-    - `on: workflow_run` with `workflows: ["Terraform CI"]` and `types: [completed]` for `dev`
-    - `on: workflow_run` with `workflows: ["Terraform Deploy to dev"]` for `test`
-    - `on: workflow_run` with `workflows: ["Terraform Deploy to test"]` for `prod`
-    - Example `workflow_run` trigger with branch filter for dev:
-      ```yaml
-      on:
-        workflow_run:
-          workflows: ["Terraform CI"]
-          types: [completed]
-          branches: [develop]
-      ```
-    - Example `workflow_run` trigger with branch filter for test/prod:
-      ```yaml
-      on:
-        workflow_run:
-          workflows: ["Terraform Deploy to dev"]
-          types: [completed]
-          branches: [main]
-      ```
-    - Guard with `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
-    - `environment: dev|test|prod` and use environment-scoped secrets/state
-    - `concurrency: deploy-terraform-${{ github.ref }}-${{ github.workflow }}-${{ github.environment }}`
-    - **Plan Artifact Handling:** When Terraform Cloud is used as the remote backend, do NOT download plan artifacts (plan output is not supported). Run `terraform plan` and `terraform apply` directly without plan file dependencies. If using other backends (e.g., S3, local), download the plan artifact produced by CI and apply it; if plan artifact missing, fail early.
-  - Example apply step for Terraform Cloud (no plan file):
+     3. **S3/Storage** (Preferred for multiple dependencies or long retention):
 
-    ```yaml
-    - name: Terraform Plan
-      env:
-        TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-      run: terraform plan
+        - Upload to S3 bucket with predictable naming (e.g., `{artifact-name}-{environment}-{commit-sha}`)
+        - Download from S3 in downstream workflow
+        - Better for multiple dependencies as each workflow can upload independently
+        - Use when artifacts need longer retention or multiple workflows depend on same artifact
 
-    - name: Terraform Apply
-      env:
-        TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-      run: terraform apply -input=false -auto-approve
-    ```
+     4. **Container Registry** (For Docker images):
 
-    **Note:** When using Terraform Cloud remote backend, plan output files are NOT supported. Do NOT use `terraform plan -out=filename` or `terraform apply filename`. Run `terraform plan` and `terraform apply` directly without plan file dependencies. Consider using Terraform Cloud's native plan/apply workflow (sentinel policies, run triggers) for advanced approval workflows.
+        - Push Docker images with tags to registry (ECR, Docker Hub, etc.)
+        - Reference image tags in downstream workflows
+        - Use for containerized applications
 
-  - Example apply step for non-Terraform Cloud backends (with plan file download):
+     5. **Environment Variables/Workflow Outputs** (For artifact metadata):
+        - Pass artifact paths/URLs via workflow outputs or GitHub secrets
+        - Use when artifact location/URL needs to be passed between workflows
+        - Combine with artifact storage methods above
 
-    ```yaml
-    - name: Download plan artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: terraform-plan
+6. **Apply Language-Specific Standards:**
 
-    - name: Terraform Apply
-      env:
-        TF_TOKEN_app_terraform_io: ${{ secrets.TFC_TOKEN }}
-      run: terraform apply -input=false "${{ env.TF_PLAN_PATH }}"
-    ```
+   - For each detected code type, read and apply the complete content from `{code-type}-standards.md`
+   - Use the exact job names, steps, and patterns specified in the standards file
+   - Do not modify or summarize the standards - use them as written
+   - If a standards file is missing, create it with appropriate CI/CD patterns for that code type
 
-4. **Present Workflow YAML Preview:**
-   - Show summarized YAML contents for all generated files, e.g.:
-     - `{stack}-ci.yml`
-     - `{stack}-deploy-dev.yml`
-     - `{stack}-deploy-test.yml`
-     - `{stack}-deploy-prod.yml`
-   - Include key triggers, environments, permissions, and artifact passing
-5. **Checkpoint:**
-   - Prompt user to confirm: "Proceed to generate CI and CD workflows (dev → test → prod) with the described dependencies and protections?" Wait for confirmation.
+7. **Document Dependency Handling:**
+
+   - For each dependency relationship identified in Phase 1:
+     - Document which upstream workflow must complete first
+     - Document which downstream workflow waits for it
+     - Document what artifacts are passed between workflows
+     - Document how artifacts are passed (GitHub Actions artifacts, S3, etc.)
+   - Example: "Terraform-dev workflow waits for Python-dev workflow to complete and download lambda-package-dev artifact"
+
+8. **Present Workflow YAML Preview:**
+
+   - Show summarized YAML contents for all generated environment-specific workflow files:
+     - `{code-type}-dev.yml` for each detected code type
+     - `{code-type}-test.yml` for each detected code type
+     - `{code-type}-prd.yml` for each detected code type
+   - Include key jobs (CI jobs + deployment job), triggers, environments, permissions, and artifact passing
+   - **Highlight dependency handling**:
+     - Show `workflow_run` triggers for dependent workflows
+     - Show artifact download/upload steps
+     - Show how artifacts are passed to deployment steps
+   - List any workflows that were modified or removed
+   - Highlight the environment-specific structure (3 files per code type)
+   - **Show dependency graph**: Visual representation of which workflows depend on others
+
+9. **Checkpoint:**
+   - Prompt user to confirm: "Proceed to generate/update environment-specific CI/CD workflows (dev/test/prd) with dependency handling and protections for all detected code types?"
+   - Wait for confirmation.
