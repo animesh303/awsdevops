@@ -80,14 +80,17 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Lint, test, security scan, artifact generation
      - Organize workflow logic into multiple jobs with clear dependencies using `needs:`
      - Prefer fast-fail by running independent jobs in parallel
-     - Upload SARIF results and build artifacts
+     - Build and upload artifacts
      - Follow patterns from `{code-type}-standards.md`
+     - **Note**: SARIF upload steps should be skipped/omitted
 
    - **Deploy to Dev Job**:
      - **Needs**: All CI jobs must succeed
-     - **Dependency Handling**:
+     - **Dependency Handling** (CRITICAL - must be done BEFORE deployment operations):
        - If this code type depends on others, add `workflow_run` trigger to wait for upstream workflows
-       - Download artifacts from upstream workflows (e.g., Lambda zip from Python workflow)
+       - **Download artifacts from upstream workflows FIRST** (e.g., Lambda zip from Python workflow)
+       - **Place artifacts in correct location** where deployment code expects them (e.g., if Terraform references `lambda_function.zip`, place it in the Terraform directory)
+       - **Verify artifacts exist** before proceeding with deployment operations
        - Pass artifact information (paths, URLs, tags) to deployment steps
      - Deploys to Development environment
      - Uses GitHub `environment: dev` for secrets and protection rules
@@ -120,8 +123,9 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Lint, test, security scan, artifact generation
      - Organize workflow logic into multiple jobs with clear dependencies using `needs:`
      - Prefer fast-fail by running independent jobs in parallel
-     - Upload SARIF results and build artifacts
+     - Build and upload artifacts
      - Follow patterns from `{code-type}-standards.md`
+     - **Note**: SARIF upload steps should be skipped/omitted
      - **Checkout Step**: For push triggers, standard checkout is sufficient. For workflow_run triggers, checkout from triggering workflow branch:
        ```yaml
        - uses: actions/checkout@v4
@@ -130,9 +134,11 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
    - **Deploy to Test Job**:
      - **Needs**: All CI jobs must succeed
-     - **Dependency Handling**:
+     - **Dependency Handling** (CRITICAL - must be done BEFORE deployment operations):
        - If this code type depends on others, ensure upstream workflows completed successfully
-       - Download artifacts from upstream workflows (e.g., Lambda zip from Python workflow)
+       - **Download artifacts from upstream workflows FIRST** (e.g., Lambda zip from Python workflow)
+       - **Place artifacts in correct location** where deployment code expects them
+       - **Verify artifacts exist** before proceeding with deployment operations
        - Pass artifact information to deployment steps
      - Deploys to Test environment
      - Uses GitHub `environment: test` for secrets and protection rules
@@ -161,8 +167,9 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Lint, test, security scan, artifact generation
      - Organize workflow logic into multiple jobs with clear dependencies using `needs:`
      - Prefer fast-fail by running independent jobs in parallel
-     - Upload SARIF results and build artifacts
+     - Build and upload artifacts
      - Follow patterns from `{code-type}-standards.md`
+     - **Note**: SARIF upload steps should be skipped/omitted
      - **CRITICAL - Checkout Step**: EVERY job (CI and deployment) MUST have checkout as the FIRST step:
        ```yaml
        - uses: actions/checkout@v4
@@ -173,9 +180,11 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
    - **Deploy to Prod Job**:
      - **Needs**: All CI jobs must succeed
-     - **Dependency Handling**:
+     - **Dependency Handling** (CRITICAL - must be done BEFORE deployment operations):
        - If this code type depends on others, ensure upstream workflows completed successfully
-       - Download artifacts from upstream workflows (e.g., Lambda zip from Python workflow)
+       - **Download artifacts from upstream workflows FIRST** (e.g., Lambda zip from Python workflow)
+       - **Place artifacts in correct location** where deployment code expects them
+       - **Verify artifacts exist** before proceeding with deployment operations
        - Pass artifact information to deployment steps
      - Deploys to Production environment
      - Uses GitHub `environment: prod` with protection rules/approvals for promotion gates
@@ -197,7 +206,6 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
      permissions:
        contents: read
-       security-events: read
        id-token: write  # For OIDC if needed
 
      jobs:
@@ -214,19 +222,13 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
        tests:
          runs-on: ubuntu-latest
-         if: hashFiles('tests/**') != ''
+         if: ${{ hashFiles('tests/**') != '' }}
          steps:
            # ... test steps from standards file
 
-       upload-sarif:
-         needs: [lint, security]
-         runs-on: ubuntu-latest
-         steps:
-           # ... SARIF upload steps from standards file
-
        # Deployment Job
        deploy-dev:
-         needs: [lint, security, tests, upload-sarif]
+         needs: [lint, security, tests]
          runs-on: ubuntu-latest
          environment: dev
          steps:
@@ -244,7 +246,6 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
      permissions:
        contents: read
-       security-events: read
        id-token: write  # For OIDC if needed
 
      jobs:
@@ -262,22 +263,15 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
            # ... security scan steps from standards file
 
        tests:
-         if: hashFiles('tests/**') != ''
+         if: ${{ hashFiles('tests/**') != '' }}
          runs-on: ubuntu-latest
          steps:
            - uses: actions/checkout@v4
            # ... test steps from standards file
 
-       upload-sarif:
-         needs: [lint, security]
-         runs-on: ubuntu-latest
-         steps:
-           - uses: actions/checkout@v4
-           # ... SARIF upload steps from standards file
-
        # Deployment Job
        deploy-test:
-         needs: [lint, security, tests, upload-sarif]
+         needs: [lint, security, tests]
          runs-on: ubuntu-latest
          environment: test
          steps:
@@ -298,7 +292,6 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
      permissions:
        contents: read
-       security-events: read
        id-token: write  # For OIDC if needed
 
      jobs:
@@ -330,20 +323,10 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
                ref: ${{ github.event.workflow_run.head_branch }}
            # ... test steps from standards file
 
-       upload-sarif:
-         if: ${{ github.event.workflow_run.conclusion == 'success' }}
-         needs: [lint, security]
-         runs-on: ubuntu-latest
-         steps:
-           - uses: actions/checkout@v4
-             with:
-               ref: ${{ github.event.workflow_run.head_branch }}
-           # ... SARIF upload steps from standards file
-
        # Deployment Job
        deploy-prod:
          if: ${{ github.event.workflow_run.conclusion == 'success' }}
-         needs: [lint, security, tests, upload-sarif]
+         needs: [lint, security, tests]
          runs-on: ubuntu-latest
          environment: prod
          steps:
@@ -351,15 +334,6 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
              with:
                ref: ${{ github.event.workflow_run.head_branch }}
            # ... deployment steps from standards file
-     ```
-
-   - **Permissions for SARIF Upload:**
-     Workflows that upload SARIF results MUST declare permissions:
-
-     ```yaml
-     permissions:
-       contents: read
-       security-events: read
      ```
 
    - **AWS Credentials Configuration (Mandatory for AWS-related workflows):**
@@ -435,17 +409,45 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
            types: [completed]
            branches: [develop]
        ```
-     - Download artifacts from upstream workflow:
+     - **CRITICAL**: Download artifacts from upstream workflow BEFORE any Terraform operations:
        ```yaml
        - name: Download Lambda package from upstream workflow
          uses: actions/download-artifact@v4
          with:
-           name: lambda-package
+           name: lambda-package-dev
            run-id: ${{ github.event.workflow_run.id }}
            github-token: ${{ secrets.GITHUB_TOKEN }}
+           path: ./lambda-package
+       ```
+     - **Place artifact in correct location** where Terraform expects it:
+       ```yaml
+       - name: Move Lambda package to Terraform directory
+         run: |
+           # CRITICAL: Check the actual path referenced in Terraform code
+           # If Terraform uses: filename = "lambda_function.zip" in the same directory
+           # Place it where Terraform expects it (e.g., iac/terraform/lambda_function.zip)
+           mkdir -p ./iac/terraform
+           cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
+           # Adjust path based on actual Terraform code location and filename
+           echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
+       ```
+     - **Verify artifact exists** before Terraform operations:
+       ```yaml
+       - name: Verify Lambda package exists
+         run: |
+           # Verify the exact path that Terraform code references
+           TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
+           if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
+             echo "Error: Lambda package not found at: $TERRAFORM_LAMBDA_PATH"
+             echo "Downloaded artifacts location:"
+             ls -la ./lambda-package/ || echo "lambda-package directory not found"
+             exit 1
+           fi
+           echo "✓ Lambda package verified at: $TERRAFORM_LAMBDA_PATH"
        ```
      - Or download from S3/container registry if artifacts were stored there
      - Use artifact information in deployment steps (e.g., pass Lambda zip path to Terraform)
+     - **Order of operations**: Checkout → Download artifacts → Place artifacts → Verify artifacts → Configure credentials → Terraform init/plan/apply
 
      **Multiple Dependencies**:
 

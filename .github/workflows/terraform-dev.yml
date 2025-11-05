@@ -161,6 +161,26 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lambda-package
       
+      - name: Move Lambda package to Terraform directory
+        if: github.event_name == 'workflow_run'
+        run: |
+          mkdir -p ./iac/terraform
+          cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
+          echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
+      
+      - name: Verify Lambda package exists
+        if: github.event_name == 'workflow_run'
+        run: |
+          TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
+          if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
+            echo "Error: Lambda package not found at: $TERRAFORM_LAMBDA_PATH"
+            echo "Checking downloaded artifact location:"
+            ls -la ./lambda-package/ || echo "lambda-package directory not found"
+            exit 1
+          fi
+          echo "✓ Lambda package verified at: $TERRAFORM_LAMBDA_PATH"
+          ls -lh "$TERRAFORM_LAMBDA_PATH"
+      
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -182,13 +202,10 @@ jobs:
           }
           EOF
       
-      - name: Set Lambda package path
+      - name: Set Lambda package path fallback
+        if: github.event_name == 'push'
         run: |
-          if [ -f "./lambda-package/lambda-package.zip" ]; then
-            echo "TF_VAR_lambda_package_path=./lambda-package/lambda-package.zip" >> $GITHUB_ENV
-          else
-            echo "TF_VAR_lambda_package_path=src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
-          fi
+          echo "TF_VAR_lambda_package_path=src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
       
       - name: Terraform Init
         run: |

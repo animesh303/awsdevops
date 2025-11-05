@@ -103,28 +103,62 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
       push:
         branches: [develop] # Also trigger on direct push
     ```
-- **Steps**:
-  - Checkout code: `ref: ${{ github.event.workflow_run.head_branch }}` (if using workflow_run trigger)
-  - **Download dependencies from upstream workflows** (if Terraform depends on other code types):
-    ```yaml
-    - name: Download Lambda package from upstream workflow
-      uses: actions/download-artifact@v4
-      with:
-        name: lambda-package-dev
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path: ./lambda-package
-    ```
-    - Or download from S3/container registry if artifacts were stored there
-  - Configure AWS credentials via OIDC (mandatory)
-  - Configure Terraform Cloud (if applicable)
-  - **Pass dependency artifacts to Terraform**:
-    - Set environment variables or Terraform variables with artifact paths/URLs
-    - Example: `TF_VAR_lambda_package_path=./lambda-package/lambda-package.zip`
-  - **Plan Application**:
-    - If NOT using Terraform Cloud: Download plan artifact and apply it
-    - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
-  - Deploy to development environment
+- **Steps** (CRITICAL ORDER):
+  1. **Checkout code**: `ref: ${{ github.event.workflow_run.head_branch }}` (if using workflow_run trigger) OR standard checkout (for push trigger)
+  2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
+     ```yaml
+     - name: Download Lambda package from upstream workflow
+       uses: actions/download-artifact@v4
+       with:
+         name: lambda-package-dev # Must match the artifact name uploaded by Python workflow
+         run-id: ${{ github.event.workflow_run.id }}
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         path: ./lambda-package # Downloads to ./lambda-package/lambda-package.zip
+     ```
+     - **Note**: After download, the artifact will be at `./lambda-package/lambda-package.zip` (or the filename uploaded by upstream workflow)
+     - Or download from S3/container registry if artifacts were stored there
+  3. **Place artifact in correct location** where Terraform code expects it:
+     ```yaml
+     - name: Move Lambda package to Terraform directory
+       run: |
+         # CRITICAL: Check the actual path referenced in Terraform code (e.g., in s3-lambda-trigger-main.tf)
+         # If Terraform code uses: filename = "lambda_function.zip"
+         # Place it in the same directory as the Terraform file that references it
+         # Example: If Terraform code is in iac/terraform/ and references lambda_function.zip
+         mkdir -p ./iac/terraform
+         cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
+         # Or if Terraform uses a variable or different path, adjust accordingly:
+         # cp ./lambda-package/lambda-package.zip ./path/that/terraform/expects/lambda_function.zip
+         # Set environment variable if Terraform uses TF_VAR:
+         echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
+     ```
+  4. **Verify artifact exists** before Terraform operations:
+     ```yaml
+     - name: Verify Lambda package exists
+       run: |
+         # CRITICAL: Verify the exact path that Terraform code references
+         # Check your Terraform code to find the exact filename and path expected
+         TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
+         if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
+           echo "Error: Lambda package not found at: $TERRAFORM_LAMBDA_PATH"
+           echo "Checking downloaded artifact location:"
+           ls -la ./lambda-package/ || echo "lambda-package directory not found"
+           echo "Current directory structure:"
+           find . -name "*.zip" -o -name "lambda_function.zip" 2>/dev/null || echo "No zip files found"
+           exit 1
+         fi
+         echo "✓ Lambda package verified at: $TERRAFORM_LAMBDA_PATH"
+         ls -lh "$TERRAFORM_LAMBDA_PATH"
+     ```
+  5. Configure AWS credentials via OIDC (mandatory)
+  6. Configure Terraform Cloud (if applicable)
+  7. **Pass dependency artifacts to Terraform**:
+     - Set environment variables or Terraform variables with artifact paths/URLs
+     - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
+  8. **Plan Application**:
+     - If NOT using Terraform Cloud: Download plan artifact and apply it
+     - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
+  9. Deploy to development environment
 
 ### Deploy to Test (in `terraform-test.yml`)
 
@@ -144,28 +178,47 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
     ```
     **Note**: For dependencies, test workflow can wait for upstream test workflow via workflow_run, with push as fallback
 - **Condition**: If using `workflow_run`, add condition at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
-- **Steps**:
-  - Checkout code: For push triggers use standard checkout, for workflow_run add `ref: ${{ github.event.workflow_run.head_branch }}`
-  - **Download dependencies from upstream workflows** (if Terraform depends on other code types):
-    ```yaml
-    - name: Download Lambda package from upstream workflow
-      uses: actions/download-artifact@v4
-      with:
-        name: lambda-package-test
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path: ./lambda-package
-    ```
-  - Configure AWS credentials via OIDC (mandatory)
-  - Configure Terraform Cloud (if applicable)
-  - Run CI jobs (validate, plan, security)
-  - **Pass dependency artifacts to Terraform**:
-    - Set environment variables or Terraform variables with artifact paths/URLs
-    - Example: `TF_VAR_lambda_package_path=./lambda-package/lambda-package.zip`
-  - **Plan Application**:
-    - If NOT using Terraform Cloud: Download plan artifact and apply it
-    - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
-  - Deploy to test environment
+- **Steps** (CRITICAL ORDER):
+  1. **Checkout code**: For push triggers use standard checkout, for workflow_run add `ref: ${{ github.event.workflow_run.head_branch }}`
+  2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
+     ```yaml
+     - name: Download Lambda package from upstream workflow
+       uses: actions/download-artifact@v4
+       with:
+         name: lambda-package-test
+         run-id: ${{ github.event.workflow_run.id }}
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         path: ./lambda-package
+     ```
+     - Or download from S3/container registry if artifacts were stored there
+  3. **Place artifact in correct location** where Terraform code expects it:
+     ```yaml
+     - name: Move Lambda package to Terraform directory
+       run: |
+         mkdir -p ./iac/terraform
+         cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
+         echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
+     ```
+  4. **Verify artifact exists** before Terraform operations:
+     ```yaml
+     - name: Verify Lambda package exists
+       run: |
+         if [ ! -f "./iac/terraform/lambda_function.zip" ]; then
+           echo "Error: lambda_function.zip not found at expected location!"
+           exit 1
+         fi
+         echo "Lambda package verified at: ./iac/terraform/lambda_function.zip"
+     ```
+  5. Configure AWS credentials via OIDC (mandatory)
+  6. Configure Terraform Cloud (if applicable)
+  7. Run CI jobs (validate, plan, security)
+  8. **Pass dependency artifacts to Terraform**:
+     - Set environment variables or Terraform variables with artifact paths/URLs
+     - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
+  9. **Plan Application**:
+     - If NOT using Terraform Cloud: Download plan artifact and apply it
+     - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
+  10. Deploy to test environment
 
 ### Deploy to Prod (in `terraform-prd.yml`)
 
@@ -183,29 +236,48 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
     ```
     **Note**: For same-environment dependencies, prod workflow waits for dependency's prod workflow (e.g., "Python Prod"), not test workflow
 - **Condition**: `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
-- **Steps**:
-  - Checkout code: `ref: ${{ github.event.workflow_run.head_branch }}` (required for workflow_run triggers)
-  - **Download dependencies from upstream workflows** (if Terraform depends on other code types):
-    ```yaml
-    - name: Download Lambda package from upstream workflow
-      uses: actions/download-artifact@v4
-      with:
-        name: lambda-package-prod
-        run-id: ${{ github.event.workflow_run.id }}
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        path: ./lambda-package
-    ```
-  - Configure AWS credentials via OIDC (mandatory)
-  - Configure Terraform Cloud (if applicable)
-  - Run CI jobs (validate, plan, security)
-  - **Pass dependency artifacts to Terraform**:
-    - Set environment variables or Terraform variables with artifact paths/URLs
-    - Example: `TF_VAR_lambda_package_path=./lambda-package/lambda-package.zip`
-  - **Plan Application**:
-    - If NOT using Terraform Cloud: Download plan artifact and apply it
-    - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
-  - Deploy to production environment
-  - Protected with GitHub environment protection rules
+- **Steps** (CRITICAL ORDER):
+  1. **Checkout code**: `ref: ${{ github.event.workflow_run.head_branch }}` (required for workflow_run triggers)
+  2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
+     ```yaml
+     - name: Download Lambda package from upstream workflow
+       uses: actions/download-artifact@v4
+       with:
+         name: lambda-package-prod
+         run-id: ${{ github.event.workflow_run.id }}
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         path: ./lambda-package
+     ```
+     - Or download from S3/container registry if artifacts were stored there
+  3. **Place artifact in correct location** where Terraform code expects it:
+     ```yaml
+     - name: Move Lambda package to Terraform directory
+       run: |
+         mkdir -p ./iac/terraform
+         cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
+         echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
+     ```
+  4. **Verify artifact exists** before Terraform operations:
+     ```yaml
+     - name: Verify Lambda package exists
+       run: |
+         if [ ! -f "./iac/terraform/lambda_function.zip" ]; then
+           echo "Error: lambda_function.zip not found at expected location!"
+           exit 1
+         fi
+         echo "Lambda package verified at: ./iac/terraform/lambda_function.zip"
+     ```
+  5. Configure AWS credentials via OIDC (mandatory)
+  6. Configure Terraform Cloud (if applicable)
+  7. Run CI jobs (validate, plan, security)
+  8. **Pass dependency artifacts to Terraform**:
+     - Set environment variables or Terraform variables with artifact paths/URLs
+     - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
+  9. **Plan Application**:
+     - If NOT using Terraform Cloud: Download plan artifact and apply it
+     - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
+  10. Deploy to production environment
+  11. Protected with GitHub environment protection rules
 
 ## Permissions
 

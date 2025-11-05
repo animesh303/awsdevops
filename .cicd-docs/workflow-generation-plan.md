@@ -1,4 +1,4 @@
-# Phase 2: Workflow Generation Results
+# Phase 2: Workflow Generation Results (Regeneration #2)
 
 ## Dependency Handling Implementation
 
@@ -13,7 +13,7 @@
 
 ## Existing Workflows Management
 
-**Removed Workflows (Regeneration):**
+**Removed Workflows (Regeneration #2):**
 - [x] `.github/workflows/python-dev.yml` - REMOVED
 - [x] `.github/workflows/python-test.yml` - REMOVED
 - [x] `.github/workflows/python-prd.yml` - REMOVED
@@ -41,15 +41,15 @@
 - [x] `terraform-dev.yml` - CI + Deploy to Dev
   - Trigger: workflow_run after Python Dev + push fallback
   - CI Jobs: validate, plan, security, upload-sarif
-  - Deploy: Download lambda-package-dev, pass to Terraform, apply
+  - Deploy: Download lambda-package-dev, verify, pass to Terraform, apply
 - [x] `terraform-test.yml` - CI + Deploy to Test
   - Trigger: workflow_run after Python Test + push fallback
   - CI Jobs: validate, plan, security, upload-sarif
-  - Deploy: Download lambda-package-test, pass to Terraform, apply
+  - Deploy: Download lambda-package-test, verify, pass to Terraform, apply
 - [x] `terraform-prd.yml` - CI + Deploy to Prod
   - Trigger: workflow_run after Terraform Test AND Python Prod
   - CI Jobs: validate, plan, security, upload-sarif
-  - Deploy: Download lambda-package-prod, pass to Terraform, apply
+  - Deploy: Download lambda-package-prod, verify, pass to Terraform, apply
 
 ## Language-Specific Standards Applied
 
@@ -65,7 +65,7 @@
 - [x] Terraform Cloud configuration
 - [x] Checkov security scanning with SARIF output
 - [x] AWS OIDC credential configuration
-- [x] Dependency artifact download and path passing
+- [x] Dependency artifact download and verification
 
 ## SARIF Upload Configuration
 
@@ -89,10 +89,23 @@
 **Production Environment:**
 - [x] python-test success → python-prd → terraform-prd (waits for both Terraform Test and Python Prod)
 
+## Improvements in Regeneration #2
+
+**Enhanced Dependency Handling:**
+- [x] Added Lambda package verification steps before Terraform operations
+- [x] Improved artifact path handling with proper directory creation
+- [x] Added fallback Lambda package path for push triggers
+- [x] Enhanced error handling for missing artifacts
+
+**Better Workflow Structure:**
+- [x] Consistent checkout steps with proper ref handling for workflow_run triggers
+- [x] Improved conditional logic for workflow_run vs push triggers
+- [x] Enhanced SARIF artifact handling with pattern matching
+
 ## Summary
 
 - **Generated Files**: 6 workflow files (3 Python + 3 Terraform)
 - **Removed Files**: 6 existing workflow files
-- **Dependencies**: Terraform workflows wait for Python workflows
-- **Artifacts**: Lambda packages passed between workflows
+- **Dependencies**: Enhanced Terraform workflows with proper Lambda package verification
+- **Artifacts**: Improved Lambda package handling between workflows
 - **Environments**: dev, test, prod with proper triggers and protection rules
