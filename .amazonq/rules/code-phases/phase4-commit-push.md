@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Provide an optional, user-confirmed step to commit and push the generated/updated code (Terraform, Lambdas, tests, docs). Allow the user to skip.
+Provide an optional, user-confirmed step to commit and push the generated/updated code (IAC, application code, tests, docs). Allow the user to skip.
 
 ## Preconditions
 
@@ -30,12 +30,13 @@ Provide an optional, user-confirmed step to commit and push the generated/update
 4. **Commit Changes with Structured Message**
 
    - Commit message format:
-     - `feat(codegen): add/refresh generated Terraform and Lambda code`
+     - `feat(codegen): add/refresh generated {iac-tool} and {runtime-type} code`
      - Include JIRA reference when available: `Refs: {TICKET-NUMBER}`
      - Suggested body bullets:
-       - Validate Terraform (`fmt`, `init -backend=false`, `validate`) passed
-       - Apply resource tags: `JiraId`, `ManagedBy=terraform`
+       - Validate IAC configuration (tool-specific validation) passed
+       - Apply resource tags: `JiraId`, `ManagedBy={iac-tool}`
        - Include lint and security checks outputs where applicable
+       - **Note**: Replace {iac-tool} and {runtime-type} with actual values read from `.code-docs/requirements/{TICKET-NUMBER}-analysis.md`
 
 5. **Push Changes**
 
@@ -45,11 +46,9 @@ Provide an optional, user-confirmed step to commit and push the generated/update
 ## Safety Checks
 
 - Respect `.gitignore`; avoid committing secrets or build outputs.
-- Confirm Terraform validation passes (Phase 2 requirements) before committing.
+- Confirm IAC validation passes (Phase 2 requirements, tool-specific) before committing.
 - Ensure SARIF/report paths referenced in CI exist or are guarded.
 
 ## Outputs
 
 - Branch pushed with committed changes.
-
-

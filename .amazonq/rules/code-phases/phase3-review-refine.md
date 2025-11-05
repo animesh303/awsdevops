@@ -17,7 +17,7 @@
    - Present file paths as clickable links using actual file paths (replace placeholders with real names)
    - **File path format** (in order of preference):
      - Clickable links from Amazon Q chat window.
-     - Relative paths from workspace root (e.g., `iac/terraform/file.tf`)
+     - Relative paths from workspace root (e.g., `iac/{iac-tool}/file.{extension}`)
      - Absolute paths in backticks as fallback
    - Present links to all newly generated and modified files (IaC, application code, tests, etc.)
    - Ask: "Please review the generated/modified code using the provided links. What changes would you like to make?"
