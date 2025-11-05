@@ -47,39 +47,35 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
   - Configure AWS credentials via OIDC
   - Configure Terraform Cloud (if applicable)
   - Run `terraform init`
+  - **Detect Terraform Cloud Backend**:
+    ```yaml
+    - name: Detect Terraform Cloud backend
+      id: detect-tfc
+      run: |
+        if grep -q "cloud" backend.tf 2>/dev/null || [ -n "$TFC_TOKEN" ]; then
+          echo "USE_TFC=true" >> $GITHUB_ENV
+          echo "Terraform Cloud backend detected"
+        else
+          echo "USE_TFC=false" >> $GITHUB_ENV
+          echo "Standard backend detected"
+        fi
+    ```
   - Run `terraform plan`
   - **Plan Artifact Handling**:
-    - If NOT using Terraform Cloud backend: Upload plan as artifact
-    - If using Terraform Cloud backend: Skip plan artifact (plan output not supported)
+    - If NOT using Terraform Cloud backend (`USE_TFC=false`): Upload plan as artifact
+    - If using Terraform Cloud backend (`USE_TFC=true`): Skip plan artifact (plan output not supported)
 
 ### Security Job
 
 - **Name**: `tf-security`
 - **Steps**:
   - Install Checkov
-  - Run Checkov with SARIF output:
+  - Run Checkov:
     ```yaml
-    - name: Run Checkov (SARIF)
+    - name: Run Checkov
       run: |
         pip install checkov
-        checkov -d . --output-file-path results_sarif.sarif --output sarif
-    ```
-  - Upload SARIF artifact with name `checkov-sarif`
-  - Set `continue-on-error: true` for the job
-
-### Upload SARIF Job
-
-- **Name**: `tf-upload-sarif`
-- **Needs**: `[tf-security]`
-- **Steps**:
-  - Download SARIF artifact (`checkov-sarif`)
-  - Verify `results_sarif.sarif` file exists
-  - Upload using `github/codeql-action/upload-sarif@v3`:
-    ```yaml
-    - name: Upload SARIF to GitHub
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: results_sarif.sarif
+        checkov -d . || true
     ```
   - Set `continue-on-error: true` for the job
 
@@ -104,19 +100,38 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
         branches: [develop] # Also trigger on direct push
     ```
 - **Steps** (CRITICAL ORDER):
-  1. **Checkout code**: `ref: ${{ github.event.workflow_run.head_branch }}` (if using workflow_run trigger) OR standard checkout (for push trigger)
+  1. **CRITICAL - Checkout code**: For workflow_run triggers, ALL jobs MUST checkout with ref parameter:
+     ```yaml
+     - uses: actions/checkout@v4
+       with:
+         ref: ${{ github.event.workflow_run.head_branch }}
+     ```
+     For push triggers, use standard checkout:
+     ```yaml
+     - uses: actions/checkout@v4
+     ```
   2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
      ```yaml
      - name: Download Lambda package from upstream workflow
        uses: actions/download-artifact@v4
+       continue-on-error: true
+       id: download-artifact
        with:
          name: lambda-package-dev # Must match the artifact name uploaded by Python workflow
          run-id: ${{ github.event.workflow_run.id }}
          github-token: ${{ secrets.GITHUB_TOKEN }}
          path: ./lambda-package # Downloads to ./lambda-package/lambda-package.zip
+     
+     - name: Verify artifact downloaded successfully
+       if: steps.download-artifact.outcome != 'success'
+       run: |
+         echo "Error: Failed to download artifact 'lambda-package-dev' from upstream workflow"
+         echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
+         exit 1
      ```
      - **Note**: After download, the artifact will be at `./lambda-package/lambda-package.zip` (or the filename uploaded by upstream workflow)
-     - Or download from S3/container registry if artifacts were stored there
+     - **For single dependency**: Always use `actions/download-artifact@v4` with `run-id` (shown above)
+     - **For multiple dependencies**: Download from S3/container registry where each upstream workflow uploads independently
   3. **Place artifact in correct location** where Terraform code expects it:
      ```yaml
      - name: Move Lambda package to Terraform directory
@@ -156,8 +171,8 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
      - Set environment variables or Terraform variables with artifact paths/URLs
      - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
   8. **Plan Application**:
-     - If NOT using Terraform Cloud: Download plan artifact and apply it
-     - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
+     - If NOT using Terraform Cloud (`USE_TFC=false`): Download plan artifact from CI job and apply it
+     - If using Terraform Cloud (`USE_TFC=true`): Run `terraform plan` and `terraform apply -auto-approve` directly
   9. Deploy to development environment
 
 ### Deploy to Test (in `terraform-test.yml`)
@@ -179,18 +194,37 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
     **Note**: For dependencies, test workflow can wait for upstream test workflow via workflow_run, with push as fallback
 - **Condition**: If using `workflow_run`, add condition at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
 - **Steps** (CRITICAL ORDER):
-  1. **Checkout code**: For push triggers use standard checkout, for workflow_run add `ref: ${{ github.event.workflow_run.head_branch }}`
+  1. **CRITICAL - Checkout code**: For workflow_run triggers, ALL jobs MUST checkout with ref parameter:
+     ```yaml
+     - uses: actions/checkout@v4
+       with:
+         ref: ${{ github.event.workflow_run.head_branch }}
+     ```
+     For push triggers, use standard checkout:
+     ```yaml
+     - uses: actions/checkout@v4
+     ```
   2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
      ```yaml
      - name: Download Lambda package from upstream workflow
        uses: actions/download-artifact@v4
+       continue-on-error: true
+       id: download-artifact
        with:
          name: lambda-package-test
          run-id: ${{ github.event.workflow_run.id }}
          github-token: ${{ secrets.GITHUB_TOKEN }}
          path: ./lambda-package
+     
+     - name: Verify artifact downloaded successfully
+       if: steps.download-artifact.outcome != 'success'
+       run: |
+         echo "Error: Failed to download artifact 'lambda-package-test' from upstream workflow"
+         echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
+         exit 1
      ```
-     - Or download from S3/container registry if artifacts were stored there
+     - **For single dependency**: Always use `actions/download-artifact@v4` with `run-id` (shown above)
+     - **For multiple dependencies**: Download from S3/container registry where each upstream workflow uploads independently
   3. **Place artifact in correct location** where Terraform code expects it:
      ```yaml
      - name: Move Lambda package to Terraform directory
@@ -216,8 +250,8 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
      - Set environment variables or Terraform variables with artifact paths/URLs
      - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
   9. **Plan Application**:
-     - If NOT using Terraform Cloud: Download plan artifact and apply it
-     - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
+     - If NOT using Terraform Cloud (`USE_TFC=false`): Download plan artifact from CI job and apply it
+     - If using Terraform Cloud (`USE_TFC=true`): Run `terraform plan` and `terraform apply -auto-approve` directly
   10. Deploy to test environment
 
 ### Deploy to Prod (in `terraform-prd.yml`)
@@ -225,7 +259,7 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
 - **Name**: `deploy-prod`
 - **Needs**: All CI jobs (within the prod workflow)
 - **Environment**: `prod`
-- **Workflow Trigger**: `workflow_run` on successful completion of `terraform-test.yml` with `branches: [main]`
+  - **Workflow Trigger**: `workflow_run` on successful completion of `terraform-test.yml` with `branches: [main]`
   - **If Terraform depends on other code types**, also wait for their prod workflows (same environment):
     ```yaml
     on:
@@ -234,21 +268,37 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
         types: [completed]
         branches: [main]
     ```
-    **Note**: For same-environment dependencies, prod workflow waits for dependency's prod workflow (e.g., "Python Prod"), not test workflow
+    **Note**: For same-environment dependencies, prod workflow waits for dependency's prod workflow (e.g., "Python Prod"), not test workflow. This ensures Terraform Prod deploys only after Python Prod has successfully deployed in the same environment.
 - **Condition**: `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
 - **Steps** (CRITICAL ORDER):
-  1. **Checkout code**: `ref: ${{ github.event.workflow_run.head_branch }}` (required for workflow_run triggers)
+  1. **CRITICAL - Checkout code**: For workflow_run triggers, ALL jobs MUST checkout with ref parameter:
+     ```yaml
+     - uses: actions/checkout@v4
+       with:
+         ref: ${{ github.event.workflow_run.head_branch }}
+     ```
+     This is required because `workflow_run` triggers don't automatically checkout code.
   2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
      ```yaml
      - name: Download Lambda package from upstream workflow
        uses: actions/download-artifact@v4
+       continue-on-error: true
+       id: download-artifact
        with:
          name: lambda-package-prod
          run-id: ${{ github.event.workflow_run.id }}
          github-token: ${{ secrets.GITHUB_TOKEN }}
          path: ./lambda-package
+     
+     - name: Verify artifact downloaded successfully
+       if: steps.download-artifact.outcome != 'success'
+       run: |
+         echo "Error: Failed to download artifact 'lambda-package-prod' from upstream workflow"
+         echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
+         exit 1
      ```
-     - Or download from S3/container registry if artifacts were stored there
+     - **For single dependency**: Always use `actions/download-artifact@v4` with `run-id` (shown above)
+     - **For multiple dependencies**: Download from S3/container registry where each upstream workflow uploads independently
   3. **Place artifact in correct location** where Terraform code expects it:
      ```yaml
      - name: Move Lambda package to Terraform directory
@@ -274,14 +324,13 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
      - Set environment variables or Terraform variables with artifact paths/URLs
      - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
   9. **Plan Application**:
-     - If NOT using Terraform Cloud: Download plan artifact and apply it
-     - If using Terraform Cloud: Run `terraform plan` and `terraform apply -auto-approve` directly
+     - If NOT using Terraform Cloud (`USE_TFC=false`): Download plan artifact from CI job and apply it
+     - If using Terraform Cloud (`USE_TFC=true`): Run `terraform plan` and `terraform apply -auto-approve` directly
   10. Deploy to production environment
   11. Protected with GitHub environment protection rules
 
 ## Permissions
 
-- **SARIF Upload**: `security-events: read`
 - **AWS Operations**: `id-token: write` (for OIDC, mandatory)
 - **Contents**: `read`
 

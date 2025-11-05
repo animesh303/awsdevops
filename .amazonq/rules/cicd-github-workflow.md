@@ -175,7 +175,7 @@ For each detected code type, generate **three separate workflow files**, one per
 - **Trigger**: Runs ONLY on pushes to `develop` branch
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as separate parallel jobs where possible
-  - Uploads SARIF results and build artifacts
+  - Uploads build artifacts
 - **Deploy to Dev Job**:
   - **Requires**: Successful completion of all CI jobs
   - Deploys to Development environment
@@ -186,7 +186,7 @@ For each detected code type, generate **three separate workflow files**, one per
 - **Trigger**: Runs on pushes to `main` branch
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as separate parallel jobs where possible
-  - Uploads SARIF results and build artifacts
+  - Uploads build artifacts
 - **Deploy to Test Job**:
   - **Requires**: Successful completion of all CI jobs
   - Deploys to Test environment
@@ -199,7 +199,7 @@ For each detected code type, generate **three separate workflow files**, one per
   - Uses `branches: [main]` filter in `workflow_run` trigger
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as part of the workflow
-  - Uploads SARIF results and build artifacts
+  - Uploads build artifacts
 - **Deploy to Prod Job**:
   - **Requires**: Successful completion of all CI jobs
   - Deploys to Production environment
@@ -214,10 +214,17 @@ For each detected code type, generate **three separate workflow files**, one per
 
 ## Workflow Requirements
 
+**CRITICAL**: All generated workflow files MUST be free of linting errors. Workflows must:
+
+- Have valid YAML syntax
+- Use correct GitHub Actions expression syntax (`${{ }}` for all functions)
+- Have no missing required fields
+- Have valid job dependencies and workflow triggers
+- Pass GitHub Actions workflow validation
+
 - All workflows must include:
   - CI/CD best practices (lint, test, scan, artifact upload, etc.)
-  - Language-appropriate security scanning with SARIF upload
-  - SARIF upload using `github/codeql-action/upload-sarif@v3`
+  - Language-appropriate security scanning
   - Proper permissions and AWS credential configuration when needed
 - Modular, extensible and production-grade workflows
 - Minimal, clear confirmation at each phase
@@ -259,44 +266,6 @@ When generating workflows for a detected code type, you MUST:
 
 If a standards file does not exist for a detected code type, create it following the pattern of existing standards files and include language-appropriate CI/CD patterns.
 
-## Example: Flake8 SARIF
-
-```yaml
-- name: Run Flake8 (SARIF)
-  run: |
-    pip install flake8 flake8-sarif
-    flake8 . --format sarif --output-file flake8-results.sarif
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: flake8-results.sarif
-```
-
-## Example: Bandit SARIF
-
-```yaml
-- name: Run Bandit (SARIF)
-  run: |
-    pip install bandit bandit-sarif-formatter
-    bandit -r . -f sarif -o bandit-results.sarif || true
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: bandit-results.sarif
-```
-
-## Example: Checkov SARIF
-
-```yaml
-- name: Run Checkov (SARIF)
-  run: |
-    pip install checkov
-    checkov -d . --output-file-path results.sarif --output sarif
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: results.sarif
-```
 
 ## CRITICAL: Plan-Level Checkbox Enforcement
 
@@ -393,7 +362,6 @@ Use kebab-case, descriptive file names based on detected code types
 - **Existing Workflow Management**: Analyze existing workflows in `.github/workflows/` and modify or remove as needed
 - **Re-generation Support**: Allow complete re-generation of workflows; previous workflows may be removed if they don't match current codebase or detected code types
 - Always generate ONLY for detected code types
-- Ensure SARIF and code quality upload for all code types
 - **Environment-Specific Workflows**: Generate three separate workflow files per code type:
   - `{code-type}-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch push)
   - `{code-type}-test.yml` - CI + Deploy to Test (triggers on `main` branch push)

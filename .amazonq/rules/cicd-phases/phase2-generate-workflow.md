@@ -10,6 +10,38 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
 - Workflow generation plan: `.cicd-docs/workflow-generation-plan.md` (or `.cicd-docs/phase2-plan.md`)
 
+## MANDATORY: GitHub Actions Expression Syntax
+
+**CRITICAL**: When using GitHub Actions functions like `hashFiles`, `always()`, `success()`, etc., they MUST always be wrapped in `${{ }}` expression syntax.
+
+- **Correct**: `if: ${{ hashFiles('tests/**') != '' }}`
+- **Incorrect**: `if: hashFiles('tests/**') != ''` (will cause "Unrecognized function" error)
+
+**All GitHub Actions expressions must use `${{ }}` syntax**, including:
+
+- `hashFiles()` - Check if files exist or have changed
+- `always()`, `success()`, `failure()`, `cancelled()` - Job status checks
+- `github.event.*` - Event context access
+- Any other GitHub Actions context functions
+
+## MANDATORY: Workflow Linting and Validation
+
+**CRITICAL**: All generated CICD workflow files MUST be free of linting errors. Before finalizing any workflow:
+
+1. **Validate YAML syntax**: Ensure all YAML is valid and properly formatted
+2. **Validate GitHub Actions syntax**: Verify all expressions use correct `${{ }}` syntax
+3. **Check for common errors**:
+   - Missing required fields (name, on, jobs, runs-on, etc.)
+   - Invalid job dependencies (circular dependencies, missing job references)
+   - Incorrect workflow trigger syntax
+   - Missing or incorrect environment names
+   - Invalid artifact names or paths
+   - Incorrect condition syntax
+4. **Test workflow structure**: Verify workflow structure is valid GitHub Actions YAML
+5. **Fix any linting errors immediately** - DO NOT proceed to Phase 3 if workflows have linting errors
+
+**Workflows with linting errors will fail in GitHub Actions and must be fixed before deployment.**
+
 ## Steps
 
 1. **Load Dependency Information from Phase 1:**
@@ -125,8 +157,7 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Prefer fast-fail by running independent jobs in parallel
      - Build and upload artifacts
      - Follow patterns from `{code-type}-standards.md`
-     - **Note**: SARIF upload steps should be skipped/omitted
-     - **Checkout Step**: For push triggers, standard checkout is sufficient. For workflow_run triggers, checkout from triggering workflow branch:
+     - **CRITICAL - Checkout Step**: For push triggers, standard checkout is sufficient. For workflow_run triggers, ALL jobs MUST include checkout with ref parameter:
        ```yaml
        - uses: actions/checkout@v4
          # For workflow_run: add with: ref: ${{ github.event.workflow_run.head_branch }}
@@ -169,8 +200,7 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Prefer fast-fail by running independent jobs in parallel
      - Build and upload artifacts
      - Follow patterns from `{code-type}-standards.md`
-     - **Note**: SARIF upload steps should be skipped/omitted
-     - **CRITICAL - Checkout Step**: EVERY job (CI and deployment) MUST have checkout as the FIRST step:
+     - **CRITICAL - Checkout Step**: EVERY job (CI and deployment) MUST have checkout as the FIRST step with ref parameter:
        ```yaml
        - uses: actions/checkout@v4
          with:
@@ -194,6 +224,8 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Protected with GitHub environment protection rules
 
 5. **Workflow Structure Requirements:**
+
+   **CRITICAL**: Remember that all GitHub Actions expressions (including `hashFiles`) MUST be wrapped in `${{ }}` syntax.
 
    - **Dev Workflow Structure Example:**
 
@@ -367,9 +399,11 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
      ```yaml
      concurrency:
-       group: deploy-{code-type}-${{ github.ref }}-${{ github.environment }}
+       group: deploy-{code-type}-${{ github.ref }}-{environment}
        cancel-in-progress: false
      ```
+
+     Note: Replace `{environment}` with the actual environment name (dev, test, or prod)
 
    - **Automation of Manual Steps (Mandatory):**
      All manual steps that can be automated MUST be included:
@@ -409,16 +443,27 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
            types: [completed]
            branches: [develop]
        ```
-     - **CRITICAL**: Download artifacts from upstream workflow BEFORE any Terraform operations:
+     - **CRITICAL**: Download artifacts from upstream workflow BEFORE any Terraform operations (with error handling):
+
        ```yaml
        - name: Download Lambda package from upstream workflow
          uses: actions/download-artifact@v4
+         continue-on-error: true
+         id: download-artifact
          with:
            name: lambda-package-dev
            run-id: ${{ github.event.workflow_run.id }}
            github-token: ${{ secrets.GITHUB_TOKEN }}
            path: ./lambda-package
+
+       - name: Verify artifact downloaded successfully
+         if: steps.download-artifact.outcome != 'success'
+         run: |
+           echo "Error: Failed to download artifact 'lambda-package-dev' from upstream workflow"
+           echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
+           exit 1
        ```
+
      - **Place artifact in correct location** where Terraform expects it:
        ```yaml
        - name: Move Lambda package to Terraform directory
@@ -475,11 +520,12 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
         - Limited retention (default 1 day, configurable up to 90 days)
         - Use when artifacts are consumed within short time window
 
-     2. **Cross-Workflow Artifacts** (Preferred for workflow_run triggers with single dependency):
+     2. **Cross-Workflow Artifacts** (MANDATORY for workflow_run triggers with single dependency):
 
         - Use `actions/download-artifact@v4` with `run-id` and `github-token`
         - Works for `workflow_run` triggers when downloading from the triggering workflow
-        - **Limitation**: When multiple dependencies exist, `github.event.workflow_run.id` only refers to one workflow
+        - **CRITICAL**: For single dependency, ALWAYS use this method with `run-id: ${{ github.event.workflow_run.id }}`
+        - **Limitation**: When multiple dependencies exist, `github.event.workflow_run.id` only refers to one workflow - use S3/Storage method instead
         - Use when single upstream dependency and artifacts consumed quickly
 
      3. **S3/Storage** (Preferred for multiple dependencies or long retention):
@@ -516,7 +562,20 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Document how artifacts are passed (GitHub Actions artifacts, S3, etc.)
    - Example: "Terraform-dev workflow waits for Python-dev workflow to complete and download lambda-package-dev artifact"
 
-8. **Present Workflow YAML Preview:**
+8. **Validate Workflow Linting (MANDATORY):**
+
+   - **CRITICAL**: Before presenting preview, validate all generated workflow files for linting errors:
+     - Check YAML syntax validity
+     - Verify all GitHub Actions expressions use `${{ }}` syntax (especially `hashFiles`)
+     - Verify no missing required fields (name, on, jobs, runs-on, etc.)
+     - Check for valid job dependencies (no circular dependencies, all referenced jobs exist)
+     - Verify workflow trigger syntax is correct
+     - Check environment names are valid
+     - Verify artifact paths and names are correct
+   - **If linting errors are found**: Fix them immediately before proceeding
+   - **DO NOT proceed to preview if workflows have linting errors**
+
+9. **Present Workflow YAML Preview:**
 
    - Show summarized YAML contents for all generated environment-specific workflow files:
      - `{code-type}-dev.yml` for each detected code type
@@ -530,7 +589,8 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
    - List any workflows that were modified or removed
    - Highlight the environment-specific structure (3 files per code type)
    - **Show dependency graph**: Visual representation of which workflows depend on others
+   - **Confirm linting validation**: State that all workflows have been validated and are free of linting errors
 
-9. **Checkpoint:**
-   - Prompt user to confirm: "Proceed to generate/update environment-specific CI/CD workflows (dev/test/prd) with dependency handling and protections for all detected code types?"
-   - Wait for confirmation.
+10. **Checkpoint:**
+    - Prompt user to confirm: "Proceed to generate/update environment-specific CI/CD workflows (dev/test/prd) with dependency handling and protections for all detected code types?"
+    - Wait for confirmation.

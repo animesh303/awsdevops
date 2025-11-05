@@ -26,19 +26,17 @@ Provide the user with final review of the generated/updated CI/CD workflow files
 
    - Present generated artifacts for review when available:
 
-     - **Python**: Flake8 SARIF, Bandit SARIF, test reports/coverage artifacts
-     - **Terraform**: Checkov SARIF, `tflint` output, Terraform plan artifact (if applicable)
-     - **JavaScript/TypeScript**: ESLint SARIF, security scan results, test reports
-     - **Java**: Build artifacts, lint SARIF, security scan results
-     - **Go**: Build binaries, lint SARIF, security scan results
+     - **Python**: Lint results, security scan results, test reports/coverage artifacts
+     - **Terraform**: Security scan results, `tflint` output, Terraform plan artifact (if applicable)
+     - **JavaScript/TypeScript**: Lint results, security scan results, test reports
+     - **Java**: Build artifacts, lint results, security scan results
+     - **Go**: Build binaries, lint results, security scan results
      - **Docker**: Container images, security scan results
      - **Kubernetes**: Manifest validation, security scan results
      - **CloudFormation**: Template validation, security scan results
      - **CDK**: Synthesis artifacts, security scan results
 
    - Provide quick highlights:
-
-     - Counts of findings from SARIF where available
      - Environment-specific workflow structure (3 separate files per code type: dev/test/prd)
      - Branch-based deployment triggers (develop → dev, main → test/prod)
      - Environment protection rules and approvals
@@ -60,7 +58,7 @@ Provide the user with final review of the generated/updated CI/CD workflow files
 
    - Verify environment-specific workflow structure for each code type:
      - Dev workflow (`{code-type}-dev.yml`) triggers on pushes to `develop` branch (or waits for upstream dependencies)
-     - Test workflow (`{code-type}-test.yml`) triggers via `workflow_run` after successful dev workflow on `main` branch (or waits for upstream dependencies)
+     - Test workflow (`{code-type}-test.yml`) triggers on pushes to `main` branch (or waits for upstream dependencies via workflow_run)
      - Prod workflow (`{code-type}-prd.yml`) triggers via `workflow_run` after successful test workflow on `main` branch (or waits for upstream dependencies)
    - Confirm `workflow_run` triggers with `branches: [main]` filter are correctly configured for test and prod workflows
    - Verify `workflow_run` condition checks (`if: github.event.workflow_run.conclusion == 'success'`) are in place
@@ -75,7 +73,17 @@ Provide the user with final review of the generated/updated CI/CD workflow files
    - **If this was a regeneration**: Clearly indicate that workflows were removed and regenerated fresh
    - Confirm all changes align with current codebase
 
-5. **User Confirmation:**
+5. **Validate Workflow Linting:**
+
+   - **CRITICAL**: Verify all generated workflow files have no linting errors
+   - Check YAML syntax validity
+   - Verify all GitHub Actions expressions use correct `${{ }}` syntax
+   - Verify no missing required fields
+   - Check for valid job dependencies and workflow triggers
+   - **If linting errors are found**: Fix them immediately before proceeding to Phase 4
+   - Report any linting errors found and confirm they are resolved
+
+6. **User Confirmation:**
    - Ask user: "Are these workflow files ready for commit and push to the repository?"
    - On positive confirmation, proceed to Phase 4 (Commit & Push Changes).
    - On decline, permit user to abort or suggest edits to the workflows before proceeding to Phase 4.

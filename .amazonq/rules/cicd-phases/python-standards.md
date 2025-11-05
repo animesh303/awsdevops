@@ -14,14 +14,13 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
   - Setup Python with matrix version
   - Cache pip dependencies
   - Install dependencies: `pip install -r requirements.txt`
-  - Run Flake8 with SARIF output:
+  - Run Flake8:
     ```yaml
-    - name: Run Flake8 (SARIF)
+    - name: Run Flake8
       run: |
-        pip install flake8 flake8-sarif
-        flake8 . --format sarif --output-file flake8-results.sarif
+        pip install flake8
+        flake8 .
     ```
-  - Upload SARIF artifact
 
 ### Security Job
 
@@ -31,14 +30,13 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
   - Setup Python
   - Cache pip dependencies
   - Install dependencies
-  - Run Bandit with SARIF output:
+  - Run Bandit:
     ```yaml
-    - name: Run Bandit (SARIF)
+    - name: Run Bandit
       run: |
-        pip install bandit bandit-sarif-formatter
-        bandit -r . -f sarif -o bandit-results.sarif || true
+        pip install bandit
+        bandit -r . || true
     ```
-  - Upload SARIF artifact
   - Set `continue-on-error: true` for the job
 
 ### Tests Job
@@ -58,20 +56,6 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
     ```
   - Upload coverage artifacts (coverage.xml, htmlcov/)
 
-### Upload SARIF Job
-
-- **Name**: `python-upload-sarif`
-- **Needs**: `[python-lint, python-security]`
-- **Steps**:
-  - Download SARIF artifacts from lint and security jobs
-  - Verify SARIF files exist
-  - Upload using `github/codeql-action/upload-sarif@v3`:
-    ```yaml
-    - name: Upload SARIF
-      uses: github/codeql-action/upload-sarif@v3
-      with:
-        sarif_file: flake8-results.sarif
-    ```
 
 ## Deployment Jobs
 
@@ -158,7 +142,6 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
 
 ## Permissions
 
-- **SARIF Upload**: `security-events: read`
 - **AWS Operations**: `id-token: write` (for OIDC)
 - **Contents**: `read` (default)
 
@@ -176,5 +159,5 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
 
 - **Build and Package**: Create Lambda deployment package (zip file) in deployment jobs
 - **Upload Artifacts**: Upload packages using `actions/upload-artifact@v4` with environment-specific names
-- **Artifact Naming**: Use environment suffix (e.g., `lambda-package-dev`, `lambda-package-test`, `lambda-package-prod`)
+- **Artifact Naming**: Use standardized naming convention: `{artifact-type}-{environment}` (e.g., `lambda-package-dev`, `lambda-package-test`, `lambda-package-prod`)
 - **Export Information**: Make artifact paths/URLs available to downstream workflows via workflow outputs or environment variables
