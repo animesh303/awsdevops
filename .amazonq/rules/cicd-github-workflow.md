@@ -18,6 +18,7 @@
 - `session-continuity.md` - Session management and resumption
 - `workflow-common-issues.md` - Common issues and solutions
 - `workflow-dependency-handling.md` - Dependency handling patterns
+- `orchestrator-workflow-patterns.md` - Orchestrator workflow patterns for managing dependencies
 - `error-handling.md` - Error scenarios and responses
 - `rollback-procedures.md` - Rollback and undo procedures
 - `validation-checklist.md` - Comprehensive validation criteria
@@ -202,6 +203,39 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 - If existing workflows exist, analyze them and modify/remove as needed based on current codebase
 
 ## Environment-Specific CI/CD Workflow Architecture
+
+### Two-Tier Architecture: Orchestrator + Code Type Workflows
+
+**When dependencies exist between code types**, generate orchestrator workflows to manage execution order:
+
+**Orchestrator Workflows** (one per environment):
+
+- `orchestrator-dev.yml` - Orchestrates all code type workflows for dev environment
+- `orchestrator-test.yml` - Orchestrates all code type workflows for test environment
+- `orchestrator-prd.yml` - Orchestrates all code type workflows for prod environment
+
+**Code Type Workflows** (three per code type, per environment):
+
+- `{code-type}-dev.yml` - CI + Deploy to Dev (can be triggered independently or via orchestrator)
+- `{code-type}-test.yml` - CI + Deploy to Test (can be triggered independently or via orchestrator)
+- `{code-type}-prd.yml` - CI + Deploy to Prod (can be triggered independently or via orchestrator)
+
+**When to Generate Orchestrators**:
+
+- **ALWAYS generate orchestrators**: Orchestrator workflows are generated for ALL scenarios to maintain consistency and simplify dependency management
+- This ensures uniform workflow structure regardless of the number of code types or dependency complexity
+
+**Orchestrator Benefits**:
+
+- Simplified dependency management (dependencies managed in one place)
+- Clear execution order (topological sort ensures correct order)
+- Centralized error handling and reporting
+- Reusable code type workflows (can still be triggered independently)
+- Easier debugging (single workflow run shows entire deployment pipeline)
+
+**See**: `orchestrator-workflow-patterns.md` for detailed orchestrator patterns and implementation
+
+### Code Type Workflows (Individual)
 
 For each detected code type, generate **three separate workflow files**, one per environment:
 
@@ -394,12 +428,16 @@ Use kebab-case, descriptive file names based on detected code types
 
 .github/
 └── workflows/                 # Generated GitHub Actions workflow files
+    ├── orchestrator-dev.yml        # Orchestrator for dev environment (if dependencies exist)
+    ├── orchestrator-test.yml       # Orchestrator for test environment (if dependencies exist)
+    ├── orchestrator-prd.yml        # Orchestrator for prod environment (if dependencies exist)
     ├── {code-type}-dev.yml         # Dev environment workflow (CI + Deploy to Dev)
     ├── {code-type}-test.yml        # Test environment workflow (CI + Deploy to Test)
     └── {code-type}-prd.yml         # Prod environment workflow (CI + Deploy to Prod)
 
 .amazonq/rules/cicd-phases/    # CI/CD workflow generation rules
 ├── cicd-state.md              # Legacy state file (only if .cicd-docs/ doesn't exist)
+├── orchestrator-workflow-patterns.md  # Orchestrator workflow patterns
 ├── {code-type}-standards.md   # Language-specific CI/CD standards (one per code type)
 └── [phase files]              # Phase execution instructions
 ```
@@ -410,10 +448,14 @@ Use kebab-case, descriptive file names based on detected code types
 - **Simplified Re-generation**: For regeneration requests, simply delete `.cicd-docs/` and `.github/workflows/` directories before starting - ensures completely clean start
 - **Existing Workflow Management**: For new generation (not regeneration), existing workflows in `.github/workflows/` will be replaced by newly generated workflows with matching names
 - Always generate ONLY for detected code types
+- **Orchestrator Workflows**: ALWAYS generate orchestrator workflows for consistency and simplified dependency management:
+  - `orchestrator-dev.yml` - Orchestrates all code type workflows for dev (triggers on `develop` branch push)
+  - `orchestrator-test.yml` - Orchestrates all code type workflows for test (triggers on `main` branch push)
+  - `orchestrator-prd.yml` - Orchestrates all code type workflows for prod (triggers via workflow_run after successful test orchestrator)
 - **Environment-Specific Workflows**: Generate three separate workflow files per code type:
-  - `{code-type}-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch push)
-  - `{code-type}-test.yml` - CI + Deploy to Test (triggers on `main` branch push)
-  - `{code-type}-prd.yml` - CI + Deploy to Prod (triggers via workflow_run after successful test completion)
+  - `{code-type}-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch push OR via orchestrator)
+  - `{code-type}-test.yml` - CI + Deploy to Test (triggers on `main` branch push OR via orchestrator)
+  - `{code-type}-prd.yml` - CI + Deploy to Prod (triggers via workflow_run after successful test completion OR via orchestrator)
 - **Branch-Based Deployment Triggers**:
   - Develop branch → Development environment workflow (direct push trigger)
   - Main branch → Test environment workflow (direct push trigger)

@@ -107,9 +107,25 @@ This index provides navigation and overview of all CICD workflow generation rule
 - Multiple dependency patterns
 - Artifact passing methods (5 methods)
 - Environment-specific considerations
+- Orchestrator workflow pattern (always used)
 - Best practices
 
 **Use When**: Implementing dependencies between code artifacts
+
+### `orchestrator-workflow-patterns.md`
+
+**Purpose**: Orchestrator workflow patterns (always used for consistency)  
+**Contains**:
+
+- Two-tier architecture (orchestrator + code type workflows)
+- Dependency resolution using topological sort
+- Orchestrator workflow structure and patterns
+- Code type workflow modifications for orchestrator compatibility
+- Environment-specific orchestrators (dev/test/prd)
+- Benefits of always using orchestrators
+- Implementation checklist
+
+**Use When**: Generating workflows (orchestrators are always generated for consistency)
 
 ### `error-handling.md`
 
@@ -210,14 +226,14 @@ This index provides navigation and overview of all CICD workflow generation rule
 ### During Workflow Generation
 
 - **Phase 1**: Follow `phase1-detect-plan.md`
-- **Phase 2**: Follow `phase2-generate-workflow.md`, reference `workflow-common-issues.md` and `workflow-dependency-handling.md`
+- **Phase 2**: Follow `phase2-generate-workflow.md`, reference `workflow-common-issues.md`, `workflow-dependency-handling.md`, and `orchestrator-workflow-patterns.md`
 - **Phase 3**: Follow `phase3-review-confirm.md`, use `validation-checklist.md`
 - **Phase 4**: Follow `phase4-commit-push.md`
 
 ### Troubleshooting
 
 - **Workflow errors**: See `workflow-common-issues.md`
-- **Dependency issues**: See `workflow-dependency-handling.md`
+- **Dependency issues**: See `workflow-dependency-handling.md` and `orchestrator-workflow-patterns.md`
 - **General errors**: See `error-handling.md`
 - **Need to rollback**: See `rollback-procedures.md`
 
@@ -245,6 +261,7 @@ This index provides navigation and overview of all CICD workflow generation rule
     ├── session-continuity.md         # Session management
     ├── workflow-common-issues.md    # Common issues
     ├── workflow-dependency-handling.md # Dependencies
+    ├── orchestrator-workflow-patterns.md # Orchestrator patterns
     ├── error-handling.md             # Error handling
     ├── rollback-procedures.md        # Rollback procedures
     ├── validation-checklist.md      # Validation checklist
@@ -268,6 +285,9 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 ### `.github/workflows/` Directory
 
+- `orchestrator-dev.yml` - Orchestrator for dev environment (if dependencies exist)
+- `orchestrator-test.yml` - Orchestrator for test environment (if dependencies exist)
+- `orchestrator-prd.yml` - Orchestrator for prod environment (if dependencies exist)
 - `{code-type}-dev.yml` - Dev environment workflows
 - `{code-type}-test.yml` - Test environment workflows
 - `{code-type}-prd.yml` - Prod environment workflows

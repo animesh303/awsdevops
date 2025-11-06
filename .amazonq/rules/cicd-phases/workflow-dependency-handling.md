@@ -8,6 +8,7 @@ This document provides comprehensive patterns for handling dependencies between 
 
 - See `phase2-generate-workflow.md` for workflow generation steps
 - See `workflow-common-issues.md` for troubleshooting common issues
+- See `orchestrator-workflow-patterns.md` for orchestrator workflow patterns (recommended for complex dependencies)
 - See `{code-type}-standards.md` for language-specific dependency examples
 
 ---
@@ -16,11 +17,17 @@ This document provides comprehensive patterns for handling dependencies between 
 
 When code artifacts have dependencies (e.g., Terraform depends on Python Lambda package), workflows must:
 
-1. **Wait for upstream workflows** to complete using `workflow_run` triggers
+1. **Wait for upstream workflows** to complete using `workflow_run` triggers OR use orchestrator workflows
 2. **Download artifacts** from upstream workflows
 3. **Place artifacts** in correct locations where deployment code expects them
 4. **Verify artifacts** exist before proceeding with deployment
 5. **Pass artifact information** to deployment steps
+
+**Dependency Management Approach**:
+
+- **Orchestrator Workflows** (Always Used): Orchestrator workflows are ALWAYS generated to manage execution order and artifact passing. This ensures consistency and simplifies dependency management. See `orchestrator-workflow-patterns.md` for details.
+
+**Note**: The patterns below (direct `workflow_run` triggers) are provided for reference only. In practice, orchestrator workflows are always used for consistency.
 
 ---
 
@@ -218,3 +225,39 @@ Download artifacts from all upstream workflows and combine as needed for deploym
 - **Multiple dependencies**: Use S3/Storage method instead of cross-workflow artifacts
 
 See `workflow-common-issues.md` for more troubleshooting guidance.
+
+---
+
+## Orchestrator Workflow Pattern (Always Used)
+
+**Always Used**: Orchestrator workflows are ALWAYS generated for ALL scenarios to maintain consistency and simplify dependency management.
+
+**Benefits**:
+
+- Simplified dependency management (dependencies managed in one place)
+- Clear execution order (topological sort ensures correct order)
+- Centralized error handling and reporting
+- Reusable code type workflows (can still be triggered independently)
+
+**Pattern**:
+
+1. **Generate Orchestrator Workflows** (one per environment):
+
+   - `orchestrator-dev.yml` - Orchestrates all code type workflows for dev
+   - `orchestrator-test.yml` - Orchestrates all code type workflows for test
+   - `orchestrator-prd.yml` - Orchestrates all code type workflows for prod
+
+2. **Orchestrator Structure**:
+
+   - Triggers on branch push (develop for dev, main for test/prd)
+   - Contains jobs that invoke code type workflows in dependency order
+   - Uses topological sort to determine execution order
+   - Handles artifact passing between workflows
+   - Provides centralized error handling
+
+3. **Code Type Workflows**:
+   - Support `workflow_dispatch` trigger for orchestrator invocation
+   - Can still be triggered independently via push triggers
+   - Upload artifacts with consistent naming
+
+**See**: `orchestrator-workflow-patterns.md` for complete orchestrator patterns and implementation details.

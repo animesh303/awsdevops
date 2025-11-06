@@ -75,6 +75,7 @@ If you need to conditionally run an entire job based on file existence, either:
 
 - **`workflow-common-issues.md`**: Common issues and solutions when generating GitHub Actions workflows
 - **`workflow-dependency-handling.md`**: Comprehensive patterns for handling dependencies between code artifacts
+- **`orchestrator-workflow-patterns.md`**: Orchestrator workflow patterns for managing complex dependencies
 
 ## Steps
 
@@ -106,7 +107,129 @@ If you need to conditionally run an entire job based on file existence, either:
    - If standards file does not exist, create it following the pattern of existing standards files
    - **CRITICAL**: Use the complete content from the standards file - do not summarize or paraphrase
 
-4. **Generate Environment-Specific Workflows Per Detected Code Type:**
+4. **Generate Orchestrator Workflows:**
+
+   **CRITICAL**: ALWAYS generate orchestrator workflows for ALL scenarios to maintain consistency and simplify dependency management.
+
+   - **Read Orchestrator Patterns**: Read `orchestrator-workflow-patterns.md` for detailed patterns
+
+   - **Build Execution Order**:
+
+     - Use topological sort algorithm to determine correct execution order
+     - Start with code types that have no dependencies (leaf nodes)
+     - Process code types in order: dependencies first, dependents after
+     - Example: If `terraform → python` and `kubernetes → docker → python`, order is: `[python, docker, terraform, kubernetes]`
+
+   - **Generate Orchestrator Workflows** (one per environment):
+
+     **Orchestrator Dev** (`.github/workflows/orchestrator-dev.yml`):
+
+     - **Trigger**: Push to `develop` branch
+     - **Jobs**: One job per code type in dependency order
+     - **Each Job**:
+       - Checks if code type workflow has run for this commit (if not, triggers it)
+       - Waits for code type workflow to complete
+       - Downloads artifacts from code type workflow (if needed for downstream)
+       - Passes artifacts to next job in sequence
+     - **Final Job**: Deployment summary showing status of all workflows
+     - **Pattern**: Follow patterns from `orchestrator-workflow-patterns.md`
+
+     **Orchestrator Test** (`.github/workflows/orchestrator-test.yml`):
+
+     - **Trigger**: Push to `main` branch
+     - **Same structure as dev**, but for test environment
+     - Uses test-specific artifact names
+
+     **Orchestrator Prod** (`.github/workflows/orchestrator-prd.yml`):
+
+     - **Trigger**: `workflow_run` after successful `orchestrator-test.yml` completion on `main` branch
+     - **Same structure as dev/test**, but for prod environment
+     - Uses prod-specific artifact names
+     - More strict error handling
+
+   - **Orchestrator Workflow Structure**:
+
+     ```yaml
+     name: Orchestrator Dev
+
+     on:
+       push:
+         branches: [develop]
+
+     permissions:
+       contents: read
+       id-token: write
+       actions: write  # Required to trigger other workflows
+
+     jobs:
+       # Job 1: First code type (no dependencies)
+       {code-type-1}-dev:
+         runs-on: ubuntu-latest
+         steps:
+           - name: Checkout code
+             uses: actions/checkout@v4
+
+           - name: Find or trigger {code-type-1} Dev workflow
+             uses: actions/github-script@v7
+             id: find-run
+             with:
+               script: |
+                 // Implementation from orchestrator-workflow-patterns.md
+
+           - name: Wait for {code-type-1} Dev to complete
+             uses: lewagon/wait-on-check-action@v1.3.4
+             with:
+               ref: ${{ github.ref }}
+               check-name: '{Code Type 1} Dev'
+               repo-token: ${{ secrets.GITHUB_TOKEN }}
+               wait-interval: 10
+               allowed-conclusions: success
+
+           - name: Download artifacts
+             uses: actions/download-artifact@v4
+             with:
+               name: {code-type-1}-package-dev
+               github-token: ${{ secrets.GITHUB_TOKEN }}
+               run-id: ${{ steps.find-run.outputs.run-id }}
+
+       # Job 2: Second code type (depends on first)
+       {code-type-2}-dev:
+         runs-on: ubuntu-latest
+         needs: [{code-type-1}-dev]
+         steps:
+           - name: Checkout code
+             uses: actions/checkout@v4
+
+           - name: Download artifacts from {code-type-1}
+             uses: actions/download-artifact@v4
+             with:
+               name: {code-type-1}-package-dev
+               github-token: ${{ secrets.GITHUB_TOKEN }}
+               run-id: ${{ needs.{code-type-1}-dev.outputs.run-id }}
+
+           - name: Place artifacts for {code-type-2}
+             run: |
+               # Place artifacts where {code-type-2} expects them
+               # Follow patterns from workflow-dependency-handling.md
+
+           - name: Find or trigger {code-type-2} Dev workflow
+             # Similar to job 1
+
+       # Final: Deployment Summary
+       deployment-summary:
+         runs-on: ubuntu-latest
+         needs: [{code-type-1}-dev, {code-type-2}-dev, ...]
+         if: always()
+         steps:
+           - name: Generate deployment summary
+             run: |
+               echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+               # List all workflows and their status
+     ```
+
+   - **Reference**: See `orchestrator-workflow-patterns.md` for complete patterns and implementation details
+
+5. **Generate Environment-Specific Workflows Per Detected Code Type:**
 
    **IMPORTANT**: When generating workflows, respect dependency order. Workflows that depend on others must:
 
@@ -119,21 +242,12 @@ If you need to conditionally run an entire job based on file existence, either:
    **Deploy to Dev Workflow** (`.github/workflows/{code-type}-dev.yml`):
 
    - **Workflow Trigger**:
-     - **If no dependencies**: Trigger on push to `develop` branch
+     - **Always use orchestrators**: Trigger on push to `develop` branch AND support `workflow_dispatch` for orchestrator invocation
        ```yaml
        on:
          push:
            branches: [develop]
-       ```
-     - **If has dependencies**: Trigger via `workflow_run` to wait for upstream workflows, OR allow push trigger as fallback
-       ```yaml
-       on:
-         workflow_run:
-           workflows: ["{Upstream Code Type} Dev"] # Wait for upstream
-           types: [completed]
-           branches: [develop]
-         push:
-           branches: [develop] # Fallback trigger
+         workflow_dispatch: # Allow orchestrator to trigger
        ```
      - **Note**: GitHub Actions doesn't support conditions at workflow trigger level. Conditions must be at job level. If using `workflow_run`, add condition check at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
    - **CI Jobs**:
@@ -162,21 +276,12 @@ If you need to conditionally run an entire job based on file existence, either:
    **Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
 
    - **Workflow Trigger**:
-     - **If no dependencies**: Trigger on push to `main` branch
+     - **Always use orchestrators**: Trigger on push to `main` branch AND support `workflow_dispatch` for orchestrator invocation
        ```yaml
        on:
          push:
            branches: [main]
-       ```
-     - **If has dependencies**: Trigger via `workflow_run` to wait for upstream workflows, OR allow push trigger as fallback
-       ```yaml
-       on:
-         workflow_run:
-           workflows: ["{Upstream Code Type} Test"] # Wait for upstream
-           types: [completed]
-           branches: [main]
-         push:
-           branches: [main] # Fallback trigger
+         workflow_dispatch: # Allow orchestrator to trigger
        ```
      - **Note**: GitHub Actions doesn't support conditions at workflow trigger level. Conditions must be at job level. If using `workflow_run`, add condition check at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
    - **CI Jobs**:
@@ -213,13 +318,15 @@ If you need to conditionally run an entire job based on file existence, either:
    **Deploy to Prod Workflow** (`.github/workflows/{code-type}-prd.yml`):
 
    - **Workflow Trigger**:
-     ```yaml
-     on:
-       workflow_run:
-         workflows: ["{Code Type} Test"]
-         types: [completed]
-         branches: [main]
-     ```
+     - **Always use orchestrators**: Trigger via `workflow_run` after successful test workflow AND support `workflow_dispatch` for orchestrator invocation
+       ```yaml
+       on:
+         workflow_run:
+           workflows: ["{Code Type} Test"]
+           types: [completed]
+           branches: [main]
+         workflow_dispatch: # Allow orchestrator to trigger
+       ```
    - **Condition Check**:
      ```yaml
      jobs:
@@ -256,7 +363,7 @@ If you need to conditionally run an entire job based on file existence, either:
      - Follow patterns from `{code-type}-standards.md`
      - Protected with GitHub environment protection rules
 
-5. **Workflow Structure Requirements:**
+6. **Workflow Structure Requirements:**
 
    **CRITICAL**: Remember that all GitHub Actions expressions (including `hashFiles`) MUST be wrapped in `${{ }}` syntax.
 
@@ -473,14 +580,14 @@ If you need to conditionally run an entire job based on file existence, either:
      4. Verify artifacts exist before using them
      5. Follow patterns from `workflow-dependency-handling.md` for specific implementation details
 
-6. **Apply Language-Specific Standards:**
+7. **Apply Language-Specific Standards:**
 
    - For each detected code type, read and apply the complete content from `{code-type}-standards.md`
    - Use the exact job names, steps, and patterns specified in the standards file
    - Do not modify or summarize the standards - use them as written
    - If a standards file is missing, create it with appropriate CI/CD patterns for that code type
 
-7. **Document Dependency Handling:**
+8. **Document Dependency Handling:**
 
    - For each dependency relationship identified in Phase 1:
      - Document which upstream workflow must complete first
@@ -489,7 +596,7 @@ If you need to conditionally run an entire job based on file existence, either:
      - Document how artifacts are passed (GitHub Actions artifacts, S3, etc.)
    - Example: "Terraform-dev workflow waits for Python-dev workflow to complete and download lambda-package-dev artifact"
 
-8. **Validate Workflow Linting (MANDATORY):**
+9. **Validate Workflow Linting (MANDATORY):**
 
    - **CRITICAL**: Before presenting preview, validate all generated workflow files for linting errors:
      - Check YAML syntax validity
@@ -502,22 +609,26 @@ If you need to conditionally run an entire job based on file existence, either:
    - **If linting errors are found**: Fix them immediately before proceeding
    - **DO NOT proceed to preview if workflows have linting errors**
 
-9. **Present Workflow YAML Preview:**
+10. **Present Workflow YAML Preview:**
 
-   - Show summarized YAML contents for all generated environment-specific workflow files:
-     - `{code-type}-dev.yml` for each detected code type
-     - `{code-type}-test.yml` for each detected code type
-     - `{code-type}-prd.yml` for each detected code type
-   - Include key jobs (CI jobs + deployment job), triggers, environments, permissions, and artifact passing
-   - **Highlight dependency handling**:
-     - Show `workflow_run` triggers for dependent workflows
-     - Show artifact download/upload steps
-     - Show how artifacts are passed to deployment steps
-   - List any workflows that were modified or removed
-   - Highlight the environment-specific structure (3 files per code type)
-   - **Show dependency graph**: Visual representation of which workflows depend on others
-   - **Confirm linting validation**: State that all workflows have been validated and are free of linting errors
+    - Show summarized YAML contents for all generated workflow files:
+      - **If orchestrators were generated**:
+        - `orchestrator-dev.yml`, `orchestrator-test.yml`, `orchestrator-prd.yml`
+        - Show execution order and how orchestrators manage dependencies
+      - `{code-type}-dev.yml` for each detected code type
+      - `{code-type}-test.yml` for each detected code type
+      - `{code-type}-prd.yml` for each detected code type
+    - Include key jobs (CI jobs + deployment job), triggers, environments, permissions, and artifact passing
+    - **Highlight dependency handling**:
+      - Show how orchestrator manages execution order and artifact passing
+      - Show artifact download/upload steps
+      - Show how artifacts are passed to deployment steps
+    - List any workflows that were modified or removed
+    - Highlight the environment-specific structure (3 files per code type, plus orchestrators)
+    - **Show dependency graph**: Visual representation of which workflows depend on others
+    - **Show execution order**: Show the execution order determined by topological sort
+    - **Confirm linting validation**: State that all workflows have been validated and are free of linting errors
 
-10. **Checkpoint:**
+11. **Checkpoint:**
     - Prompt user to confirm: "Proceed to generate/update environment-specific CI/CD workflows (dev/test/prd) with dependency handling and protections for all detected code types?"
     - Wait for confirmation.
