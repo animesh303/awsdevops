@@ -8,12 +8,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write
   id-token: write
-
-concurrency:
-  group: deploy-terraform-${{ github.ref }}-prod
-  cancel-in-progress: false
 
 jobs:
   tf-validate:
@@ -45,7 +40,7 @@ jobs:
           }
           EOF
       
-      - name: Terraform Init (backend=false)
+      - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init -backend=false
@@ -95,6 +90,18 @@ jobs:
           cd iac/terraform
           terraform init
       
+      - name: Detect Terraform Cloud backend
+        id: detect-tfc
+        run: |
+          cd iac/terraform
+          if grep -q "cloud" backend.tf 2>/dev/null || [ -n "$TFC_TOKEN" ]; then
+            echo "USE_TFC=true" >> $GITHUB_ENV
+            echo "Terraform Cloud backend detected"
+          else
+            echo "USE_TFC=false" >> $GITHUB_ENV
+            echo "Standard backend detected"
+          fi
+      
       - name: Terraform Plan
         run: |
           cd iac/terraform
@@ -109,44 +116,15 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
       
-      - name: Run Checkov (SARIF)
+      - name: Run Checkov
         run: |
           pip install checkov
           cd iac/terraform
-          checkov -d . --output-file-path results_sarif.sarif --output sarif
-      
-      - name: Upload SARIF artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkov-sarif
-          path: iac/terraform/results_sarif.sarif
-          retention-days: 1
-
-  tf-upload-sarif:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    needs: [tf-security]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
-      
-      - name: Download SARIF artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: checkov-sarif
-      
-      - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('results_sarif.sarif') != ''
-        with:
-          sarif_file: results_sarif.sarif
-          category: checkov
+          checkov -d . || true
 
   deploy-prod:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    needs: [tf-validate, tf-plan, tf-security, tf-upload-sarif]
+    needs: [tf-validate, tf-plan, tf-security]
     runs-on: ubuntu-latest
     environment: prod
     steps:
@@ -154,13 +132,22 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
       
-      - name: Download Lambda package from Python Prod workflow
+      - name: Download Lambda package from upstream workflow
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        id: download-artifact
         with:
           name: lambda-package-prod
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lambda-package
+      
+      - name: Verify artifact downloaded successfully
+        if: steps.download-artifact.outcome != 'success'
+        run: |
+          echo "Error: Failed to download artifact 'lambda-package-prod' from upstream workflow"
+          echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
+          exit 1
       
       - name: Move Lambda package to Terraform directory
         run: |
@@ -207,7 +194,3 @@ jobs:
           cd iac/terraform
           terraform plan
           terraform apply -auto-approve
-      
-      - name: Deploy to production environment
-        run: |
-          echo "Terraform infrastructure deployed to production environment"

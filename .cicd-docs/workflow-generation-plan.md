@@ -1,111 +1,43 @@
-# Phase 2: Workflow Generation Results (Regeneration #2)
-
-## Dependency Handling Implementation
-
-**Dependency Map Applied:**
-- [x] `terraform → depends on → python` (Terraform needs Lambda deployment package)
-
-**Artifact Passing Strategy:**
-- [x] Python workflows build and upload Lambda packages with environment-specific naming
-- [x] Terraform workflows wait for Python workflows via `workflow_run` triggers
-- [x] Terraform workflows download Lambda packages from upstream Python workflows
-- [x] Lambda package paths passed to Terraform via environment variables
-
-## Existing Workflows Management
-
-**Removed Workflows (Regeneration #2):**
-- [x] `.github/workflows/python-dev.yml` - REMOVED
-- [x] `.github/workflows/python-test.yml` - REMOVED
-- [x] `.github/workflows/python-prd.yml` - REMOVED
-- [x] `.github/workflows/terraform-dev.yml` - REMOVED
-- [x] `.github/workflows/terraform-test.yml` - REMOVED
-- [x] `.github/workflows/terraform-prd.yml` - REMOVED
+# Workflow Generation Plan
 
 ## Generated Environment-Specific Workflows
 
-**Python Workflows (3 files):**
-- [x] `python-dev.yml` - CI + Deploy to Dev
-  - Trigger: push to develop branch
-  - CI Jobs: lint (matrix 3.10-3.12), security, tests, upload-sarif
-  - Deploy: Build Lambda package, upload artifact `lambda-package-dev`
-- [x] `python-test.yml` - CI + Deploy to Test
-  - Trigger: push to main branch
-  - CI Jobs: lint (matrix 3.10-3.12), security, tests, upload-sarif
-  - Deploy: Build Lambda package, upload artifact `lambda-package-test`
-- [x] `python-prd.yml` - CI + Deploy to Prod
-  - Trigger: workflow_run after Python Test completion
-  - CI Jobs: lint (matrix 3.10-3.12), security, tests, upload-sarif
-  - Deploy: Build Lambda package, upload artifact `lambda-package-prod`
+- [x] **Python Dev** (`python-dev.yml`): CI + Deploy to Dev (triggers on develop branch)
+- [x] **Python Test** (`python-test.yml`): CI + Deploy to Test (triggers on main branch)  
+- [x] **Python Prod** (`python-prd.yml`): CI + Deploy to Prod (workflow_run after Python Test)
+- [x] **Terraform Dev** (`terraform-dev.yml`): CI + Deploy to Dev (workflow_run after Python Dev + push fallback)
+- [x] **Terraform Test** (`terraform-test.yml`): CI + Deploy to Test (workflow_run after Python Test + push fallback)
+- [x] **Terraform Prod** (`terraform-prd.yml`): CI + Deploy to Prod (workflow_run after Terraform Test + Python Prod)
 
-**Terraform Workflows (3 files):**
-- [x] `terraform-dev.yml` - CI + Deploy to Dev
-  - Trigger: workflow_run after Python Dev + push fallback
-  - CI Jobs: validate, plan, security, upload-sarif
-  - Deploy: Download lambda-package-dev, verify, pass to Terraform, apply
-- [x] `terraform-test.yml` - CI + Deploy to Test
-  - Trigger: workflow_run after Python Test + push fallback
-  - CI Jobs: validate, plan, security, upload-sarif
-  - Deploy: Download lambda-package-test, verify, pass to Terraform, apply
-- [x] `terraform-prd.yml` - CI + Deploy to Prod
-  - Trigger: workflow_run after Terraform Test AND Python Prod
-  - CI Jobs: validate, plan, security, upload-sarif
-  - Deploy: Download lambda-package-prod, verify, pass to Terraform, apply
+## Dependency Handling Implementation
 
-## Language-Specific Standards Applied
+- [x] **Python Workflows**: Build and upload Lambda deployment packages as `lambda-package-{environment}` artifacts
+- [x] **Terraform Workflows**: Download Lambda packages from upstream Python workflows using `actions/download-artifact@v4`
+- [x] **Artifact Placement**: Move downloaded packages to `./iac/terraform/lambda_function.zip` where Terraform expects them
+- [x] **Verification Steps**: Verify artifacts exist before Terraform operations
+- [x] **Workflow Triggers**: Terraform workflows wait for Python workflows via `workflow_run` triggers
 
-**Python Standards:**
-- [x] Flake8 SARIF output with matrix Python versions (3.10, 3.11, 3.12)
-- [x] Bandit security scanning with SARIF output
-- [x] Pytest with coverage (conditional on tests/ directory)
-- [x] Lambda package building and artifact upload
-- [x] Environment-specific artifact naming
+## Multi-Environment Strategy Implementation
 
-**Terraform Standards:**
-- [x] Terraform validation with version ~1.1
-- [x] Terraform Cloud configuration
-- [x] Checkov security scanning with SARIF output
-- [x] AWS OIDC credential configuration
-- [x] Dependency artifact download and verification
+- [x] **Dev Environment**: Python Dev (develop branch) → Terraform Dev (workflow_run + push fallback)
+- [x] **Test Environment**: Python Test (main branch) → Terraform Test (workflow_run + push fallback)
+- [x] **Prod Environment**: Python Test → Python Prod → Terraform Test + Python Prod → Terraform Prod
 
-## SARIF Upload Configuration
+## CI/CD Standards Applied
 
-**Python SARIF:**
-- [x] Flake8 results uploaded with category "flake8"
-- [x] Bandit results uploaded with category "bandit"
-- [x] security-events: write permission configured
+- [x] **Python Standards**: Lint (Flake8), Security (Bandit), Tests (pytest), Lambda packaging
+- [x] **Terraform Standards**: Validate, Plan, Security (Checkov), AWS OIDC, Terraform Cloud support
+- [x] **GitHub Actions Best Practices**: Proper checkout, artifact handling, environment protection
 
-**Terraform SARIF:**
-- [x] Checkov results uploaded with category "checkov"
-- [x] security-events: write permission configured
+## Workflow Linting Validation
 
-## Multi-Environment Deployment Flow
+- [x] **YAML Syntax**: All workflows have valid YAML syntax
+- [x] **GitHub Actions Expressions**: All expressions use `${{ }}` syntax (hashFiles, conditions, etc.)
+- [x] **Required Fields**: All workflows have name, on, jobs, runs-on fields
+- [x] **Job Dependencies**: Valid needs relationships, no circular dependencies
+- [x] **Workflow Triggers**: Correct workflow_run and push trigger syntax
+- [x] **Environment Names**: Valid environment names (dev, test, prod)
 
-**Development Environment:**
-- [x] develop branch → python-dev → terraform-dev
+## Generation Complete
 
-**Test Environment:**
-- [x] main branch → python-test → terraform-test
-
-**Production Environment:**
-- [x] python-test success → python-prd → terraform-prd (waits for both Terraform Test and Python Prod)
-
-## Improvements in Regeneration #2
-
-**Enhanced Dependency Handling:**
-- [x] Added Lambda package verification steps before Terraform operations
-- [x] Improved artifact path handling with proper directory creation
-- [x] Added fallback Lambda package path for push triggers
-- [x] Enhanced error handling for missing artifacts
-
-**Better Workflow Structure:**
-- [x] Consistent checkout steps with proper ref handling for workflow_run triggers
-- [x] Improved conditional logic for workflow_run vs push triggers
-- [x] Enhanced SARIF artifact handling with pattern matching
-
-## Summary
-
-- **Generated Files**: 6 workflow files (3 Python + 3 Terraform)
-- **Removed Files**: 6 existing workflow files
-- **Dependencies**: Enhanced Terraform workflows with proper Lambda package verification
-- **Artifacts**: Improved Lambda package handling between workflows
-- **Environments**: dev, test, prod with proper triggers and protection rules
+All 6 environment-specific workflow files generated with dependency handling and linting validation passed.

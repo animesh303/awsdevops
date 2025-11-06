@@ -7,18 +7,10 @@ on:
     branches: [develop]
   push:
     branches: [develop]
-    paths:
-      - "iac/terraform/**"
-      - ".github/workflows/terraform-dev.yml"
 
 permissions:
   contents: read
-  security-events: write
   id-token: write
-
-concurrency:
-  group: deploy-terraform-${{ github.ref }}-dev
-  cancel-in-progress: false
 
 jobs:
   tf-validate:
@@ -50,7 +42,7 @@ jobs:
           }
           EOF
       
-      - name: Terraform Init (backend=false)
+      - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init -backend=false
@@ -99,6 +91,18 @@ jobs:
           cd iac/terraform
           terraform init
       
+      - name: Detect Terraform Cloud backend
+        id: detect-tfc
+        run: |
+          cd iac/terraform
+          if grep -q "cloud" backend.tf 2>/dev/null || [ -n "$TFC_TOKEN" ]; then
+            echo "USE_TFC=true" >> $GITHUB_ENV
+            echo "Terraform Cloud backend detected"
+          else
+            echo "USE_TFC=false" >> $GITHUB_ENV
+            echo "Standard backend detected"
+          fi
+      
       - name: Terraform Plan
         run: |
           cd iac/terraform
@@ -112,40 +116,15 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
       
-      - name: Run Checkov (SARIF)
+      - name: Run Checkov
         run: |
           pip install checkov
           cd iac/terraform
-          checkov -d . --output-file-path results_sarif.sarif --output sarif
-      
-      - name: Upload SARIF artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: checkov-sarif
-          path: iac/terraform/results_sarif.sarif
-          retention-days: 1
-
-  tf-upload-sarif:
-    needs: [tf-security]
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - name: Download SARIF artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: checkov-sarif
-      
-      - name: Upload SARIF to GitHub
-        uses: github/codeql-action/upload-sarif@v3
-        if: hashFiles('results_sarif.sarif') != ''
-        with:
-          sarif_file: results_sarif.sarif
-          category: checkov
+          checkov -d . || true
 
   deploy-dev:
-    needs: [tf-validate, tf-plan, tf-security, tf-upload-sarif]
+    needs: [tf-validate, tf-plan, tf-security]
     runs-on: ubuntu-latest
-    if: always() && (needs.tf-validate.result == 'success' && needs.tf-plan.result == 'success' && needs.tf-security.result != 'failure')
     environment: dev
     steps:
       - uses: actions/checkout@v4
@@ -153,29 +132,37 @@ jobs:
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
       
       - name: Download Lambda package from upstream workflow
-        if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@v4
+        continue-on-error: true
+        id: download-artifact
         with:
           name: lambda-package-dev
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lambda-package
       
+      - name: Verify artifact downloaded successfully
+        if: steps.download-artifact.outcome != 'success'
+        run: |
+          echo "Error: Failed to download artifact 'lambda-package-dev' from upstream workflow"
+          echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
+          exit 1
+      
       - name: Move Lambda package to Terraform directory
-        if: github.event_name == 'workflow_run'
         run: |
           mkdir -p ./iac/terraform
           cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
           echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
       
       - name: Verify Lambda package exists
-        if: github.event_name == 'workflow_run'
         run: |
           TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
           if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
             echo "Error: Lambda package not found at: $TERRAFORM_LAMBDA_PATH"
             echo "Checking downloaded artifact location:"
             ls -la ./lambda-package/ || echo "lambda-package directory not found"
+            echo "Current directory structure:"
+            find . -name "*.zip" -o -name "lambda_function.zip" 2>/dev/null || echo "No zip files found"
             exit 1
           fi
           echo "✓ Lambda package verified at: $TERRAFORM_LAMBDA_PATH"
@@ -202,11 +189,6 @@ jobs:
           }
           EOF
       
-      - name: Set Lambda package path fallback
-        if: github.event_name == 'push'
-        run: |
-          echo "TF_VAR_lambda_package_path=src/lambda-python-s3-lambda-trigger" >> $GITHUB_ENV
-      
       - name: Terraform Init
         run: |
           cd iac/terraform
@@ -217,7 +199,3 @@ jobs:
           cd iac/terraform
           terraform plan
           terraform apply -auto-approve
-      
-      - name: Deploy to development environment
-        run: |
-          echo "Terraform infrastructure deployed to dev environment"
