@@ -4,6 +4,13 @@
 
 Scan repository comprehensively for ALL code types (Python, Terraform, JavaScript, Java, Go, Docker, Kubernetes, etc.), **load and analyze requirements files to understand dependencies**, analyze existing workflows, and create a comprehensive plan for multi-environment CI/CD workflows.
 
+## Related Files
+
+- See `cicd-github-workflow.md` for main workflow overview
+- See `session-continuity.md` for session management
+- See `error-handling.md` for error scenarios
+- See `validation-checklist.md` for validation criteria
+
 ## Plan Document Location
 
 **CRITICAL**: Plan documents are created in `.cicd-docs/` directory (preferred) or `.amazonq/rules/cicd-phases/` (legacy fallback):
@@ -27,11 +34,13 @@ Scan repository comprehensively for ALL code types (Python, Terraform, JavaScrip
      - Read requirements files to understand relationships between code artifacts
      - Identify dependencies: e.g., "Terraform infrastructure depends on Python Lambda deployment package"
      - Extract build/deployment order requirements
-     - Map dependencies: `{code-type} → depends on → {other-code-type}`
-     - Example: If requirements indicate Terraform needs Python Lambda package, document: `terraform → depends on → python`
+     - Map dependencies using structured format: `{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}`
+     - Example: If requirements indicate Terraform needs Python Lambda package, document: `{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}`
+     - For human-readable summaries, use arrow notation: `terraform → depends on → python`
 
    - **Document Dependencies**:
-     - Create dependency map in the plan document
+     - Create dependency map in the plan document using structured format
+     - Store in cicd-state.md as array: `[{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}, ...]`
      - Identify which workflows must wait for others to complete
      - Note artifact requirements (e.g., Terraform needs Lambda zip file location)
 
@@ -51,12 +60,14 @@ Scan repository comprehensively for ALL code types (Python, Terraform, JavaScrip
 
 3. **Analyze Existing Workflows:**
 
-   - Scan `.github/workflows/` directory for existing workflow files
-   - Identify which workflows are still relevant to current codebase
-   - Identify which workflows are obsolete (no matching code types)
-   - **If this is a regeneration request**: Mark all existing workflows for removal and re-generation (they will be replaced with new environment-specific workflows)
-   - Document existing workflow patterns and conventions
-   - **Document removal strategy**: List workflows that will be removed and why (e.g., "python-dev.yml will be removed and regenerated as part of regeneration request")
+   - **Simplified Approach**: If this is a regeneration request, `.github/workflows/` directory should already be deleted (handled in Welcome phase)
+   - Scan `.github/workflows/` directory for existing workflow files (if directory exists)
+   - **If `.github/workflows/` directory exists and contains files**:
+     - Document existing workflow patterns and conventions for reference
+     - Note: These workflows will be replaced with newly generated environment-specific workflows
+     - **For regeneration**: Directory should already be empty (removed in Welcome phase)
+     - **For new generation**: Directory may contain existing workflows that will be replaced
+   - **If `.github/workflows/` directory doesn't exist or is empty**: No existing workflows to analyze
 
 4. **Identify Detected Code Types:**
 

@@ -4,6 +4,13 @@
 
 Provide the user with final review of the generated/updated CI/CD workflow files for all detected code types, including multi-environment deployment pipelines, before confirming they are ready for commit and push (which happens in Phase 4).
 
+## Related Files
+
+- See `phase2-generate-workflow.md` for workflow generation steps
+- See `validation-checklist.md` for comprehensive validation criteria
+- See `workflow-common-issues.md` for troubleshooting
+- See `error-handling.md` for error scenarios
+
 ## Steps
 
 1. **Review Generated/Updated Workflows:**
@@ -37,6 +44,7 @@ Provide the user with final review of the generated/updated CI/CD workflow files
      - **CDK**: Synthesis artifacts, security scan results
 
    - Provide quick highlights:
+
      - Environment-specific workflow structure (3 separate files per code type: dev/test/prd)
      - Branch-based deployment triggers (develop → dev, main → test/prod)
      - Environment protection rules and approvals
@@ -66,12 +74,15 @@ Provide the user with final review of the generated/updated CI/CD workflow files
    - Verify environment protection rules are in place
    - **Verify dependency-based triggers**: If workflows have dependencies, ensure they wait for upstream workflows appropriately
 
-4. **Review Existing Workflow Changes:**
+4. **Review Workflow Generation Context:**
 
-   - List workflows that were modified and explain changes
-   - List workflows that were removed and explain why
-   - **If this was a regeneration**: Clearly indicate that workflows were removed and regenerated fresh
-   - Confirm all changes align with current codebase
+   - **If this was a regeneration**:
+     - Indicate that `.github/workflows/` directory was deleted and all workflows were regenerated fresh
+     - All workflows are newly generated (no modifications to existing workflows)
+   - **If this was a new generation**:
+     - Indicate that new workflows were generated
+     - Any existing workflows with matching names were replaced
+   - Confirm all generated workflows align with current codebase and detected code types
 
 5. **Validate Workflow Linting:**
 

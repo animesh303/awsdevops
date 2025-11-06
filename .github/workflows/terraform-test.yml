@@ -25,13 +25,19 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+          
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -41,17 +47,17 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+          
       - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init -backend=false
-      
+          
       - name: Terraform Validate
         run: |
           cd iac/terraform
           terraform validate
-      
+          
       - name: Terraform Format
         run: |
           cd iac/terraform
@@ -69,13 +75,19 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+          
+      - name: Cache Terraform plugins
+        uses: actions/cache@v3
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -85,12 +97,7 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
-      - name: Terraform Init
-        run: |
-          cd iac/terraform
-          terraform init
-      
+          
       - name: Detect Terraform Cloud backend
         id: detect-tfc
         run: |
@@ -102,7 +109,12 @@ jobs:
             echo "USE_TFC=false" >> $GITHUB_ENV
             echo "Standard backend detected"
           fi
-      
+          
+      - name: Terraform Init
+        run: |
+          cd iac/terraform
+          terraform init
+          
       - name: Terraform Plan
         run: |
           cd iac/terraform
@@ -166,13 +178,13 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      
+          
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ vars.AWS_REGION }}
-      
+          
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -182,14 +194,13 @@ jobs:
             token = "$TFC_TOKEN"
           }
           EOF
-      
+          
       - name: Terraform Init
         run: |
           cd iac/terraform
           terraform init
-      
-      - name: Terraform Plan and Apply
+          
+      - name: Terraform Apply
         run: |
           cd iac/terraform
-          terraform plan
           terraform apply -auto-approve

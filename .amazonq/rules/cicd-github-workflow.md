@@ -2,6 +2,35 @@
 
 # When CICD workflow generation or regeneration is requested, ALWAYS follow this workflow FIRST
 
+## Navigation
+
+**Main Workflow**: This file (`cicd-github-workflow.md`)
+
+**Phase Files**:
+
+- `phase1-detect-plan.md` - Phase 1: Detect & Plan
+- `phase2-generate-workflow.md` - Phase 2: Generate Workflows
+- `phase3-review-confirm.md` - Phase 3: Review & Confirm
+- `phase4-commit-push.md` - Phase 4: Commit & Push
+
+**Supporting Documents**:
+
+- `session-continuity.md` - Session management and resumption
+- `workflow-common-issues.md` - Common issues and solutions
+- `workflow-dependency-handling.md` - Dependency handling patterns
+- `error-handling.md` - Error scenarios and responses
+- `rollback-procedures.md` - Rollback and undo procedures
+- `validation-checklist.md` - Comprehensive validation criteria
+- `cicd-state.md` - State file template
+
+**Standards Files**:
+
+- `python-standards.md` - Python CI/CD patterns
+- `terraform-standards.md` - Terraform CI/CD patterns
+- `{code-type}-standards.md` - Language-specific patterns
+
+**See Also**: `INDEX.md` for complete file index and navigation guide
+
 ## Override Instructions
 
 Always follow this workflow when user mentions CICD GitHub workflow generation. Never skip it.
@@ -58,10 +87,13 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
 
 **Re-generation Support**: If the user explicitly requests to "regenerate", "re-generate", "refresh", or "update" workflows, you MUST:
 
-1. Create a new session (reset state files or create new session)
-2. Start from Phase 1 (detect and plan) regardless of existing session state
-3. Allow removal of previous workflows if they don't match current codebase
-4. Log the regeneration request in audit.md with timestamp
+1. **Remove existing CICD artifacts** (simplified approach):
+   - Delete the entire `.cicd-docs/` directory (removes all state, plans, and audit logs)
+   - Delete the entire `.github/workflows/` directory (removes all existing workflow files)
+   - **Note**: This ensures a completely fresh start with no legacy artifacts
+2. Start from Phase 1 (detect and plan) with a clean slate
+3. Create new `.cicd-docs/` directory and initialize fresh state files as needed
+4. Log the regeneration request in the new `.cicd-docs/audit.md` with timestamp
 
 ## MANDATORY: Custom Welcome Message
 
@@ -87,13 +119,16 @@ This focused approach ensures your codebase is production-ready with automated m
 
 1. **Check for Re-generation Request**:
    - If user explicitly mentions "regenerate", "re-generate", "refresh", "update", or "recreate" workflows, treat as regeneration request
-   - **Regeneration Request**: Create new session, reset/archive existing state, start fresh from Phase 1
-   - Log regeneration request in `.cicd-docs/audit.md` with timestamp and reason
+   - **Regeneration Request**:
+     - Delete `.cicd-docs/` directory (removes all state, plans, audit logs)
+     - Delete `.github/workflows/` directory (removes all existing workflow files)
+     - Start completely fresh from Phase 1
+   - After cleanup, log regeneration request in new `.cicd-docs/audit.md` with timestamp and reason
 2. **Display Custom Welcome Message**: Show the CICD welcome message above
 3. **Check for Existing Session**: Before proceeding, check for existing CICD workflow generation session by reading `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.md` (legacy)
-   - **If Regeneration Request**: Skip existing session check, proceed directly to new session
+   - **If Regeneration Request**: Skip existing session check (folders already removed), proceed directly to new session
 4. **If Existing Session Detected (and NOT regeneration)**: Follow session continuity instructions from `cicd-phases/session-continuity.md` and present "Welcome Back" prompt
-5. **If New Session or Regeneration**: Proceed with initial welcome, mention that previous workflows may be removed if they don't match current codebase
+5. **If New Session or Regeneration**: Proceed with initial welcome, mention that this is a fresh start (regeneration) or new session
 6. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
 7. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin detection and planning?**" - DO NOT PROCEED until user confirms
 8. **Log response with timestamp** - Record user response in `.cicd-docs/audit.md` after receiving it
@@ -110,7 +145,7 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 1. **Load all steps from `cicd-phases/phase1-detect-plan.md`**
 2. Execute steps to scan for code, identify environments, draft plan, and checkpoint user confirmation.
-3. **Update plan checkboxes** - Mark completed steps [x] in any plan document as work progresses
+3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/detection-plan.md` (or `.cicd-docs/phase1-plan.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 1 status and detected environments after completion
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
 6. **Ask for Confirmation and WAIT**: Ask: "Detection and planning complete. Are you ready to generate workflows?" - DO NOT PROCEED until user confirms
@@ -123,7 +158,7 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 1. **Load all steps from `cicd-phases/phase2-generate-workflow.md`**
 2. Execute steps to render workflow YAML, match jobs to context, and checkpoint before review.
-3. **Update plan checkboxes** - Mark completed steps [x] in any plan document as work progresses
+3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/workflow-generation-plan.md` (or `.cicd-docs/phase2-plan.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 2 status and generated files list after completion
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
 6. **Ask for Confirmation and WAIT**: Ask: "Workflows generated. Are you ready to review and confirm?" - DO NOT PROCEED until user confirms
@@ -136,7 +171,7 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 1. **Load all steps from `cicd-phases/phase3-review-confirm.md`**
 2. Execute steps to review generated workflows, present details, and checkpoint before finalization.
-3. **Update plan checkboxes** - Mark completed steps [x] in any plan document as work progresses
+3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/review-notes.md` (or `.cicd-docs/phase3-notes.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 3 status and review notes after completion
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
 6. **Ask for Final Confirmation**: Ask: "CICD setup complete. Do you approve the final workflows for integration?" - DO NOT PROCEED until user confirms
@@ -149,7 +184,7 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 1. **Load all steps from `cicd-phases/phase4-commit-push.md`**
 2. Execute steps to commit generated/updated workflow files and push to the repository, only after explicit user approval.
-3. **Update plan checkboxes** - Mark completed steps [x] in any plan document as work progresses
+3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/review-notes.md` (or `.cicd-docs/phase3-notes.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 4 status and mark overall workflow as complete
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
 6. **Ask for Confirmation and WAIT**: Ask: "Ready to commit and push the workflow changes to the repository?" - DO NOT PROCEED until user confirms
@@ -172,23 +207,29 @@ For each detected code type, generate **three separate workflow files**, one per
 
 **Deploy to Dev Workflow** (`.github/workflows/{code-type}-dev.yml`):
 
-- **Trigger**: Runs ONLY on pushes to `develop` branch
+- **Trigger**:
+  - **If no dependencies**: Runs on pushes to `develop` branch
+  - **If has dependencies**: Uses `workflow_run` trigger to wait for upstream workflows to complete, with `push` to `develop` branch as fallback
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as separate parallel jobs where possible
   - Uploads build artifacts
 - **Deploy to Dev Job**:
   - **Requires**: Successful completion of all CI jobs
+  - **If has dependencies**: Downloads artifacts from upstream workflows before deployment
   - Deploys to Development environment
   - Uses GitHub `environment: dev` for secrets and protection rules
 
 **Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
 
-- **Trigger**: Runs on pushes to `main` branch
+- **Trigger**:
+  - **If no dependencies**: Runs on pushes to `main` branch
+  - **If has dependencies**: Uses `workflow_run` trigger to wait for upstream test workflows to complete, with `push` to `main` branch as fallback
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as separate parallel jobs where possible
   - Uploads build artifacts
 - **Deploy to Test Job**:
   - **Requires**: Successful completion of all CI jobs
+  - **If has dependencies**: Downloads artifacts from upstream workflows before deployment
   - Deploys to Test environment
   - Uses GitHub `environment: test` for secrets and protection rules
 
@@ -210,7 +251,11 @@ For each detected code type, generate **three separate workflow files**, one per
 
 - Each environment has its own workflow file
 - Each workflow contains CI jobs + deployment job for that environment
-- Branch-based triggers: `develop` branch for dev (push trigger), `main` branch for test (push trigger), prod (workflow_run trigger after successful test)
+- **Trigger Logic**:
+  - **Dev workflow**: `develop` branch push (or `workflow_run` if dependencies exist)
+  - **Test workflow**: `main` branch push (or `workflow_run` if dependencies exist)
+  - **Prod workflow**: `workflow_run` trigger after successful test workflow on `main` branch (always uses workflow_run)
+- **Dependency Handling**: Workflows with dependencies use `workflow_run` triggers to wait for upstream workflows, with push triggers as fallback
 
 ## Workflow Requirements
 
@@ -266,7 +311,6 @@ When generating workflows for a detected code type, you MUST:
 
 If a standards file does not exist for a detected code type, create it following the pattern of existing standards files and include language-appropriate CI/CD patterns.
 
-
 ## CRITICAL: Plan-Level Checkbox Enforcement
 
 ### MANDATORY RULES FOR PLAN EXECUTION
@@ -284,7 +328,11 @@ The workflow uses a two-level checkbox tracking system:
 #### 1. Plan-Level Execution Tracking (Plan Files)
 
 - **Purpose**: Track detailed execution progress within each phase
-- **Location**: Individual plan files (detection-plan.md, workflow-generation-plan.md, etc.)
+- **Location**: Individual plan files in `.cicd-docs/` directory (preferred) or `.amazonq/rules/cicd-phases/` (legacy fallback)
+- **Plan Documents**:
+  - **Phase 1**: `.cicd-docs/detection-plan.md` (or `.cicd-docs/phase1-plan.md`)
+  - **Phase 2**: `.cicd-docs/workflow-generation-plan.md` (or `.cicd-docs/phase2-plan.md`)
+  - **Phase 3**: `.cicd-docs/review-notes.md` (or `.cicd-docs/phase3-notes.md`)
 - **When to Update**: Mark steps [x] as you complete the specific work described in that step
 - **MANDATORY**: Update immediately after completing work, never skip this step
 
@@ -359,8 +407,8 @@ Use kebab-case, descriptive file names based on detected code types
 # Principles
 
 - **Language-Agnostic Detection**: Scan for ALL code types in the repository, not just Python/Terraform
-- **Existing Workflow Management**: Analyze existing workflows in `.github/workflows/` and modify or remove as needed
-- **Re-generation Support**: Allow complete re-generation of workflows; previous workflows may be removed if they don't match current codebase or detected code types
+- **Simplified Re-generation**: For regeneration requests, simply delete `.cicd-docs/` and `.github/workflows/` directories before starting - ensures completely clean start
+- **Existing Workflow Management**: For new generation (not regeneration), existing workflows in `.github/workflows/` will be replaced by newly generated workflows with matching names
 - Always generate ONLY for detected code types
 - **Environment-Specific Workflows**: Generate three separate workflow files per code type:
   - `{code-type}-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch push)

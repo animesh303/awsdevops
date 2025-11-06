@@ -14,9 +14,11 @@ Ensure CICD GitHub workflow generation can resume seamlessly if interrupted or a
 
 1. **Check for Re-generation Request First**:
    - If user explicitly requests "regenerate", "re-generate", "refresh", "update", or "recreate" workflows:
-     - Archive existing state (if present) by renaming `.cicd-docs/cicd-state.md` to `.cicd-docs/cicd-state-archived-{timestamp}.md`
-     - Create new `.cicd-docs/cicd-state.md` with `current_phase: detect-plan` and empty fields
-     - Log regeneration request in `.cicd-docs/audit.md` with timestamp
+     - **Delete `.cicd-docs/` directory** (removes all state files, plan documents, and audit logs)
+     - **Delete `.github/workflows/` directory** (removes all existing workflow files)
+     - This ensures a completely clean start with no legacy artifacts
+     - After cleanup, create new `.cicd-docs/` directory and initialize fresh `.cicd-docs/cicd-state.md` with `current_phase: detect-plan` and empty fields
+     - Log regeneration request in new `.cicd-docs/audit.md` with timestamp
      - Proceed as new session (skip existing session detection)
 2. **Normal Session Detection**:
    - Check for `.cicd-docs/cicd-state.md` (preferred). If not found, check `.amazonq/rules/cicd-phases/cicd-state.md` (legacy).
@@ -34,7 +36,7 @@ Ensure CICD GitHub workflow generation can resume seamlessly if interrupted or a
 - If `current_phase: generate-workflow` → proceed with Phase 2; on completion, set `current_phase: review-confirm`.
 - If `current_phase: review-confirm` → proceed with Phase 3; on approval, set `current_phase: complete`.
 - If `current_phase: complete` → inform user CICD workflows are already finalized; offer to re-run, modify, or regenerate.
-- If user selects option E (Regenerate) or explicitly requests regeneration → archive current state, create new session, start from Phase 1.
+- If user selects option E (Regenerate) or explicitly requests regeneration → delete `.cicd-docs/` and `.github/workflows/` directories, create new session, start from Phase 1.
 
 ## Update State on Each Phase
 

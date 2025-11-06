@@ -4,6 +4,13 @@
 
 Safely commit and push generated/updated GitHub Actions workflow files after explicit user approval, ensuring traceability and adherence to repository conventions.
 
+## Related Files
+
+- See `phase3-review-confirm.md` for review procedures
+- See `rollback-procedures.md` for rollback procedures if needed
+- See `error-handling.md` for error scenarios
+- See `validation-checklist.md` for validation criteria
+
 ## Preconditions
 
 - Phase 1–3 are complete and approved by the user.
@@ -33,11 +40,11 @@ Safely commit and push generated/updated GitHub Actions workflow files after exp
      - `ci(workflows): generate/refresh GitHub Actions for Python/Terraform`
      - Include references such as JIRA ID if available: `Refs: {TICKET-NUMBER}`
      - Example full message:
-       - Subject: `ci(workflows): add Python and Terraform CI with SARIF uploads`
+       - Subject: `ci(workflows): add Python and Terraform CI/CD workflows`
        - Body (bullets):
-         - Ensure `security-events: read` permission
-         - Add Flake8/Bandit SARIF, tflint, Checkov SARIF
+         - Add Flake8/Bandit security scanning, tflint, Checkov security scanning
          - Validate Terraform config (`init -backend=false`, `validate`)
+         - Multi-environment deployment (dev/test/prod)
          - Tag resources with `JiraId` where applicable
 
 5. **Push Changes**
@@ -52,8 +59,9 @@ Safely commit and push generated/updated GitHub Actions workflow files after exp
 ## Validation & Safety Checks
 
 - Ensure no uncommitted sensitive files are included (respect `.gitignore`).
-- Verify that SARIF paths referenced in workflows exist or jobs guard against missing files.
+- Verify that all workflow files have valid YAML syntax and pass GitHub Actions validation.
 - Confirm that Terraform validation guidance has been followed in Phase 2 before committing.
+- Verify that all required CI/CD steps (lint, test, security scan) are present in generated workflows.
 
 ## Outputs
 

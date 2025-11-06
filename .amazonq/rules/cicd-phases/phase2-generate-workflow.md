@@ -24,6 +24,33 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 - `github.event.*` - Event context access
 - Any other GitHub Actions context functions
 
+**CRITICAL - `hashFiles()` Context Limitation**: The `hashFiles()` function is **ONLY available in step-level `if` conditions** (`jobs.<job>.steps[*].if`), **NOT at the job level** (`jobs.<job>.if`).
+
+- **Correct (Step Level)**:
+  ```yaml
+  jobs:
+    tests:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Run tests
+          if: ${{ hashFiles('tests/**') != '' }}
+          run: pytest
+  ```
+- **Incorrect (Job Level)**:
+  ```yaml
+  jobs:
+    tests:
+      if: ${{ hashFiles('tests/**') != '' }} # ❌ hashFiles() not available here
+      runs-on: ubuntu-latest
+      steps:
+        - run: pytest
+  ```
+
+If you need to conditionally run an entire job based on file existence, either:
+
+1. Always run the job but skip steps conditionally using step-level `if` conditions
+2. Use a separate job to check file existence and set an output, then reference that output in the job's `if` condition
+
 ## MANDATORY: Workflow Linting and Validation
 
 **CRITICAL**: All generated CICD workflow files MUST be free of linting errors. Before finalizing any workflow:
@@ -42,6 +69,13 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
 **Workflows with linting errors will fail in GitHub Actions and must be fixed before deployment.**
 
+## Reference Documents
+
+**CRITICAL**: When generating workflows, reference these supporting documents:
+
+- **`workflow-common-issues.md`**: Common issues and solutions when generating GitHub Actions workflows
+- **`workflow-dependency-handling.md`**: Comprehensive patterns for handling dependencies between code artifacts
+
 ## Steps
 
 1. **Load Dependency Information from Phase 1:**
@@ -58,17 +92,12 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Example: Kubernetes needs Docker image tag
      - Document artifact types: zip files, Docker images, build artifacts, etc.
 
-2. **Analyze and Manage Existing Workflows:**
+2. **Verify Clean State (Simplified Approach):**
 
-   - Review existing workflows in `.github/workflows/` directory
-   - **If this is a regeneration request**: Remove all existing workflows that match the pattern `{code-type}-{environment}.yml` (dev/test/prd) for detected code types, then regenerate them fresh
-   - For each existing workflow:
-     - **Keep and Modify**: If it matches a detected code type and environment, AND this is NOT a regeneration request, update it to follow the new environment-specific structure
-     - **Remove**: If it doesn't match any detected code type, is obsolete, OR if this is a regeneration request (will be replaced with new workflows)
-   - **Removal Strategy**:
-     - For regeneration: Remove matching workflows first, then generate new ones
-     - For normal generation: Remove only obsolete workflows, modify existing ones
-   - Document all changes (modifications/removals) in the plan, including whether this is a regeneration
+   - **For regeneration requests**: `.github/workflows/` directory should already be deleted (handled in Welcome phase), so no existing workflows to manage
+   - **For new generation**: If `.github/workflows/` directory exists with files, they will be replaced with newly generated workflows
+   - **No complex removal logic needed**: Simply generate new workflow files - they will overwrite any existing files with the same names
+   - Document that new environment-specific workflows are being generated (3 per code type: dev/test/prd)
 
 3. **Read Language-Specific Standards:**
 
@@ -157,11 +186,15 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
      - Prefer fast-fail by running independent jobs in parallel
      - Build and upload artifacts
      - Follow patterns from `{code-type}-standards.md`
-     - **CRITICAL - Checkout Step**: For push triggers, standard checkout is sufficient. For workflow_run triggers, ALL jobs MUST include checkout with ref parameter:
-       ```yaml
-       - uses: actions/checkout@v4
-         # For workflow_run: add with: ref: ${{ github.event.workflow_run.head_branch }}
-       ```
+     - **CRITICAL - Checkout Step**:
+       - **For push triggers**: Standard checkout is sufficient: `- uses: actions/checkout@v4`
+       - **For workflow_run triggers**: ALL jobs (CI and deployment) MUST include checkout with ref parameter:
+         ```yaml
+         - uses: actions/checkout@v4
+           with:
+             ref: ${{ github.event.workflow_run.head_branch }}
+         ```
+       - **Rule**: If workflow has `workflow_run` trigger, ALL jobs must use checkout with ref parameter, regardless of whether push trigger also exists
 
    - **Deploy to Test Job**:
      - **Needs**: All CI jobs must succeed
@@ -252,11 +285,14 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
          steps:
            # ... security scan steps from standards file
 
-       tests:
-         runs-on: ubuntu-latest
-         if: ${{ hashFiles('tests/**') != '' }}
-         steps:
-           # ... test steps from standards file
+      tests:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Run tests
+            if: ${{ hashFiles('tests/**') != '' }}
+            run: |
+              # ... test steps from standards file
 
        # Deployment Job
        deploy-dev:
@@ -294,12 +330,14 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
            - uses: actions/checkout@v4
            # ... security scan steps from standards file
 
-       tests:
-         if: ${{ hashFiles('tests/**') != '' }}
-         runs-on: ubuntu-latest
-         steps:
-           - uses: actions/checkout@v4
-           # ... test steps from standards file
+      tests:
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Run tests
+            if: ${{ hashFiles('tests/**') != '' }}
+            run: |
+              # ... test steps from standards file
 
        # Deployment Job
        deploy-test:
@@ -346,14 +384,17 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
                ref: ${{ github.event.workflow_run.head_branch }}
            # ... security scan steps from standards file
 
-       tests:
-         if: ${{ github.event.workflow_run.conclusion == 'success' && hashFiles('tests/**') != '' }}
-         runs-on: ubuntu-latest
-         steps:
-           - uses: actions/checkout@v4
-             with:
-               ref: ${{ github.event.workflow_run.head_branch }}
-           # ... test steps from standards file
+      tests:
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+            with:
+              ref: ${{ github.event.workflow_run.head_branch }}
+          - name: Run tests
+            if: ${{ hashFiles('tests/**') != '' }}
+            run: |
+              # ... test steps from standards file
 
        # Deployment Job
        deploy-prod:
@@ -416,135 +457,21 @@ Render GitHub Actions workflow files (YAML) for ALL detected code types as **thr
 
    - **Dependency Handling Patterns:**
 
-     **When Code Type A depends on Code Type B** (e.g., Terraform depends on Python Lambda):
+     **CRITICAL**: For comprehensive dependency handling patterns, see `workflow-dependency-handling.md`. This document includes:
 
-     **Upstream Workflow (Code Type B - Python)**:
+     - Single dependency patterns (upstream/downstream workflows)
+     - Multiple dependencies patterns
+     - Artifact passing methods (decision tree and all 5 methods)
+     - Environment-specific considerations
+     - Best practices and troubleshooting
 
-     - Build and package artifacts (e.g., Lambda zip file)
-     - Upload artifacts using `actions/upload-artifact@v4`:
-       ```yaml
-       - name: Upload Lambda package
-         uses: actions/upload-artifact@v4
-         with:
-           name: lambda-package
-           path: lambda-package.zip
-           retention-days: 1
-       ```
-     - Or upload to S3/container registry for cross-workflow access
-     - Export artifact information (paths, URLs, tags) as workflow outputs or environment variables
+     **Quick Reference**: When implementing dependencies:
 
-     **Downstream Workflow (Code Type A - Terraform)**:
-
-     - Add `workflow_run` trigger to wait for upstream workflow:
-       ```yaml
-       on:
-         workflow_run:
-           workflows: ["Python Dev"] # Wait for Python workflow
-           types: [completed]
-           branches: [develop]
-       ```
-     - **CRITICAL**: Download artifacts from upstream workflow BEFORE any Terraform operations (with error handling):
-
-       ```yaml
-       - name: Download Lambda package from upstream workflow
-         uses: actions/download-artifact@v4
-         continue-on-error: true
-         id: download-artifact
-         with:
-           name: lambda-package-dev
-           run-id: ${{ github.event.workflow_run.id }}
-           github-token: ${{ secrets.GITHUB_TOKEN }}
-           path: ./lambda-package
-
-       - name: Verify artifact downloaded successfully
-         if: steps.download-artifact.outcome != 'success'
-         run: |
-           echo "Error: Failed to download artifact 'lambda-package-dev' from upstream workflow"
-           echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
-           exit 1
-       ```
-
-     - **Place artifact in correct location** where Terraform expects it:
-       ```yaml
-       - name: Move Lambda package to Terraform directory
-         run: |
-           # CRITICAL: Check the actual path referenced in Terraform code
-           # If Terraform uses: filename = "lambda_function.zip" in the same directory
-           # Place it where Terraform expects it (e.g., iac/terraform/lambda_function.zip)
-           mkdir -p ./iac/terraform
-           cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
-           # Adjust path based on actual Terraform code location and filename
-           echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
-       ```
-     - **Verify artifact exists** before Terraform operations:
-       ```yaml
-       - name: Verify Lambda package exists
-         run: |
-           # Verify the exact path that Terraform code references
-           TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
-           if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
-             echo "Error: Lambda package not found at: $TERRAFORM_LAMBDA_PATH"
-             echo "Downloaded artifacts location:"
-             ls -la ./lambda-package/ || echo "lambda-package directory not found"
-             exit 1
-           fi
-           echo "✓ Lambda package verified at: $TERRAFORM_LAMBDA_PATH"
-       ```
-     - Or download from S3/container registry if artifacts were stored there
-     - Use artifact information in deployment steps (e.g., pass Lambda zip path to Terraform)
-     - **Order of operations**: Checkout → Download artifacts → Place artifacts → Verify artifacts → Configure credentials → Terraform init/plan/apply
-
-     **Multiple Dependencies**:
-
-     - If a code type depends on multiple others, use `workflow_run` triggers for all upstream workflows:
-       ```yaml
-       on:
-         workflow_run:
-           workflows: ["Python Dev", "Docker Dev"] # Wait for all upstream workflows
-           types: [completed]
-           branches: [develop]
-       ```
-     - **Important**: When multiple `workflow_run` triggers exist, `github.event.workflow_run.id` refers to the workflow that triggered this run. To download artifacts from specific upstream workflows:
-       - Option 1: Use workflow outputs/environment variables from upstream workflows to pass artifact information
-       - Option 2: Store artifacts in S3/container registry with predictable naming and download from there
-       - Option 3: Use GitHub API to find the specific workflow run ID for each dependency
-     - Download artifacts from all upstream workflows
-     - Combine artifacts as needed for deployment
-
-     **Artifact Passing Methods** (prioritized by use case):
-
-     1. **GitHub Actions Artifacts** (Preferred for same-run dependencies):
-
-        - Use `actions/upload-artifact@v4` and `actions/download-artifact@v4`
-        - Works within same workflow run
-        - Limited retention (default 1 day, configurable up to 90 days)
-        - Use when artifacts are consumed within short time window
-
-     2. **Cross-Workflow Artifacts** (MANDATORY for workflow_run triggers with single dependency):
-
-        - Use `actions/download-artifact@v4` with `run-id` and `github-token`
-        - Works for `workflow_run` triggers when downloading from the triggering workflow
-        - **CRITICAL**: For single dependency, ALWAYS use this method with `run-id: ${{ github.event.workflow_run.id }}`
-        - **Limitation**: When multiple dependencies exist, `github.event.workflow_run.id` only refers to one workflow - use S3/Storage method instead
-        - Use when single upstream dependency and artifacts consumed quickly
-
-     3. **S3/Storage** (Preferred for multiple dependencies or long retention):
-
-        - Upload to S3 bucket with predictable naming (e.g., `{artifact-name}-{environment}-{commit-sha}`)
-        - Download from S3 in downstream workflow
-        - Better for multiple dependencies as each workflow can upload independently
-        - Use when artifacts need longer retention or multiple workflows depend on same artifact
-
-     4. **Container Registry** (For Docker images):
-
-        - Push Docker images with tags to registry (ECR, Docker Hub, etc.)
-        - Reference image tags in downstream workflows
-        - Use for containerized applications
-
-     5. **Environment Variables/Workflow Outputs** (For artifact metadata):
-        - Pass artifact paths/URLs via workflow outputs or GitHub secrets
-        - Use when artifact location/URL needs to be passed between workflows
-        - Combine with artifact storage methods above
+     1. Use `workflow_run` triggers to wait for upstream workflows
+     2. Download artifacts BEFORE deployment operations
+     3. Place artifacts where deployment code expects them
+     4. Verify artifacts exist before using them
+     5. Follow patterns from `workflow-dependency-handling.md` for specific implementation details
 
 6. **Apply Language-Specific Standards:**
 

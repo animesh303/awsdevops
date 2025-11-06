@@ -1,51 +1,58 @@
 # CICD State Tracking
 
-## Current Status
+## Current Phase
 
-- **Phase 1**: Not Started
-- **Phase 2**: Not Started
-- **Phase 3**: Not Started
-- **Overall Status**: Ready to Begin
+**current_phase**: detect-plan | generate-workflow | review-confirm | complete
 
-## Phase Progress
+## Detected Code Types
 
-### Phase 1: Detect & Plan
+**detected_code_types**: [python, terraform, javascript, java, go, docker, kubernetes, etc.]
 
-- **Status**: Not Started
-- **Start Time**: N/A
-- **End Time**: N/A
-- **Detected Code Types**: []
-- **Requirements Files Loaded**: [] # List of requirements files loaded from .code-docs/requirements/ or .requirements/
-- **Dependency Map**: [] # Structured format: [{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}, ...]
-- **Artifact Requirements**: [] # Map of artifact types needed: [{code-type: "terraform", needs: ["lambda-package.zip"], from: "python"}, ...]
-- **Existing Workflows**: [] # List of existing workflow files with status: [{path: ".github/workflows/xxx.yml", status: "keep|modify|remove"}, ...]
-- **Planned Workflows**: 0 # Count of environment-specific workflows to generate (3 per code type)
+## Requirements Files Loaded
 
-### Phase 2: Generate Workflows
+**requirements_files_loaded**: [".code-docs/requirements/AWS-5_requirements.md", ".code-docs/requirements/AWS-5-analysis.md"]
 
-- **Status**: Not Started
-- **Start Time**: N/A
-- **End Time**: N/A
-- **Generated Files**: 0
-- **Environment-Specific Workflows**: [] # Three workflow files per code type (dev/test/prd)
-- **Modified Workflows**: []
-- **Removed Workflows**: []
-- **Lint/Scan Tools Run**: []
-- **SARIF Uploads**: 0
+## Dependency Map
 
-### Phase 3: Review & Confirm
+**dependency_map**: [{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}, ...]
 
-- **Status**: Not Started
-- **Start Time**: N/A
-- **End Time**: N/A
-- **Final Approval**: N/A
-- **Notes**: N/A
+## Existing Workflows
+
+**existing_workflows**:
+
+- .github/workflows/python-ci.yml (modify|remove|keep)
+- .github/workflows/old-workflow.yml (remove)
+
+## Generated Files
+
+**generated_files**:
+
+- .github/workflows/python-dev.yml (Environment-specific: Dev)
+- .github/workflows/python-test.yml (Environment-specific: Test)
+- .github/workflows/python-prd.yml (Environment-specific: Prod)
+- .github/workflows/terraform-dev.yml (Environment-specific: Dev)
+- .github/workflows/terraform-test.yml (Environment-specific: Test)
+- .github/workflows/terraform-prd.yml (Environment-specific: Prod)
 
 ## Session Information
 
-- **Session Start**: N/A
-- **Last Updated**: N/A
-- **User Confirmations**: 0
-- **Total Iterations**: 0
-- **Is Regeneration**: false # Set to true if this is a regeneration request (previous workflows may be removed)
-- **Previous Session Archived**: N/A # Path to archived state file if this is a regeneration (e.g., ".cicd-docs/cicd-state-archived-2025-01-28T14:32:15Z.md")
+**session_start**: 2025-01-28T14:32:15Z
+**last_updated**: 2025-01-28T14:32:15Z
+**is_regeneration**: false
+**pending_confirmation**: "Detection and planning complete. Are you ready to generate workflows?"
+
+## Phase Checkboxes
+
+- [ ] Phase 1: Detect & Plan
+- [ ] Phase 2: Generate Workflows
+- [ ] Phase 3: Review & Confirm
+- [ ] Phase 4: Commit & Push
+
+---
+
+## Notes
+
+- Update `current_phase` after each phase completes and user approves
+- Update `last_updated` timestamp after any changes
+- Mark phase checkboxes [x] only after user approval to proceed
+- For regeneration: Set `is_regeneration: true` and note that `.cicd-docs/` and `.github/workflows/` were deleted

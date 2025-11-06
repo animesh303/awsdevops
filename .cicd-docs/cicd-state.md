@@ -1,60 +1,48 @@
 # CICD State Tracking
 
-## Current Status
+## Current Phase
 
-- **Phase 1**: Complete
-- **Phase 2**: Complete
-- **Phase 3**: Complete
-- **Phase 4**: Not Started
-- **Overall Status**: Phase 3 Complete - Ready for Commit & Push
+**current_phase**: complete
 
-## Phase Progress
+## Detected Code Types
 
-### Phase 1: Detect & Plan
+**detected_code_types**: [python, terraform]
 
-- **Status**: Complete
-- **Start Time**: 2025-01-28T14:32:15Z
-- **End Time**: 2025-01-28T14:35:00Z
-- **Detected Code Types**: ["python", "terraform"]
-- **Requirements Files Loaded**: ["AWS-5_requirements.md", "AWS-5-analysis.md"]
-- **Dependency Map**: [{"code-type": "terraform", "depends_on": "python", "artifacts": ["lambda_function.zip"]}]
-- **Artifact Requirements**: [{"code-type": "terraform", "needs": ["lambda_function.zip"], "from": "python"}]
-- **Existing Workflows**: [{"path": ".github/workflows/python-dev.yml", "status": "remove"}, {"path": ".github/workflows/python-test.yml", "status": "remove"}, {"path": ".github/workflows/python-prd.yml", "status": "remove"}, {"path": ".github/workflows/terraform-dev.yml", "status": "remove"}, {"path": ".github/workflows/terraform-test.yml", "status": "remove"}, {"path": ".github/workflows/terraform-prd.yml", "status": "remove"}]
-- **Planned Workflows**: 6
+## Requirements Files Loaded
 
-### Phase 2: Generate Workflows
+**requirements_files_loaded**: [".code-docs/requirements/AWS-5_requirements.md", ".code-docs/requirements/AWS-5-analysis.md"]
 
-- **Status**: Complete
-- **Start Time**: 2025-01-28T14:35:00Z
-- **End Time**: 2025-01-28T14:40:00Z
-- **Generated Files**: 6
-- **Environment-Specific Workflows**: ["python-dev.yml", "python-test.yml", "python-prd.yml", "terraform-dev.yml", "terraform-test.yml", "terraform-prd.yml"]
-- **Modified Workflows**: []
-- **Removed Workflows**: ["python-dev.yml", "python-test.yml", "python-prd.yml", "terraform-dev.yml", "terraform-test.yml", "terraform-prd.yml"]
-- **Lint/Scan Tools Run**: ["YAML validation", "GitHub Actions expression validation"]
-- **SARIF Uploads**: 0
+## Dependency Map
 
-### Phase 3: Review & Confirm
+**dependency_map**: [{code-type: "terraform", depends_on: "python", artifacts: ["lambda-package.zip"]}]
 
-- **Status**: Complete
-- **Start Time**: 2025-01-28T14:40:00Z
-- **End Time**: 2025-01-28T14:42:00Z
-- **Final Approval**: Approved
-- **Notes**: All workflows reviewed and confirmed ready for integration
+## Existing Workflows
 
-### Phase 4: Commit & Push
+**existing_workflows**: [".github/workflows/python-dev.yml (replace)", ".github/workflows/python-test.yml (replace)", ".github/workflows/python-prd.yml (replace)", ".github/workflows/terraform-dev.yml (replace)", ".github/workflows/terraform-test.yml (replace)", ".github/workflows/terraform-prd.yml (replace)"]
 
-- **Status**: Not Started
-- **Start Time**: N/A
-- **End Time**: N/A
-- **Commit Status**: N/A
-- **Push Status**: N/A
+## Generated Files
+
+**generated_files**: [".github/workflows/python-dev.yml (Environment-specific: Dev)", ".github/workflows/python-test.yml (Environment-specific: Test)", ".github/workflows/python-prd.yml (Environment-specific: Prod)", ".github/workflows/terraform-dev.yml (Environment-specific: Dev)", ".github/workflows/terraform-test.yml (Environment-specific: Test)", ".github/workflows/terraform-prd.yml (Environment-specific: Prod)"]
 
 ## Session Information
 
-- **Session Start**: 2025-01-28T14:32:15Z
-- **Last Updated**: 2025-01-28T14:32:15Z
-- **User Confirmations**: 1
-- **Total Iterations**: 0
-- **Is Regeneration**: true
-- **Previous Session Archived**: .cicd-docs/cicd-state-archived-2025-01-28T14:32:15Z.md
+**session_start**: 2025-01-28T14:32:15Z
+**last_updated**: 2025-01-28T14:37:00Z
+**is_regeneration**: false
+**pending_confirmation**: ""
+
+## Phase Checkboxes
+
+- [x] Phase 1: Detect & Plan
+- [x] Phase 2: Generate Workflows
+- [x] Phase 3: Review & Confirm
+- [ ] Phase 4: Commit & Push
+
+---
+
+## Notes
+
+- Update `current_phase` after each phase completes and user approves
+- Update `last_updated` timestamp after any changes
+- Mark phase checkboxes [x] only after user approval to proceed
+- For regeneration: Set `is_regeneration: true` and note that `.cicd-docs/` and `.github/workflows/` were deleted

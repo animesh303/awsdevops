@@ -1,49 +1,64 @@
-# Detection and Planning Results
+# Phase 1: Detection and Planning
 
-## Detected Code Types
+## Code Detection Results
 
-- [x] **Python**: `src/lambda-python-s3-lambda-trigger/` (Lambda function)
-- [x] **Terraform**: `iac/terraform/` (Infrastructure as Code)
+### Detected Code Types
+- [x] **Python**: Detected in `src/lambda-python-s3-lambda-trigger/`
+  - Files: `lambda_handler.py`, `requirements.txt`
+  - Runtime: Lambda Python
+- [x] **Terraform**: Detected in `iac/terraform/`
+  - Files: `*.tf` files (main, variables, outputs, versions, backend)
+  - Infrastructure as Code
 
-## Requirements Analysis
+### Requirements Files Analysis
+- [x] **Requirements Loaded**: 
+  - `.code-docs/requirements/AWS-5_requirements.md`
+  - `.code-docs/requirements/AWS-5-analysis.md`
+- [x] **Dependency Analysis**: Terraform depends on Python Lambda package
+  - Terraform infrastructure deploys Lambda function
+  - Lambda package must be built before Terraform deployment
 
-- [x] **Requirements Files Loaded**: 
-  - AWS-5_requirements.md - S3 Lambda trigger implementation
-  - AWS-5-analysis.md - Technical analysis with dependency mapping
-- [x] **Dependency Map Created**: 
-  - `terraform → depends on → python` (Terraform needs Lambda deployment package)
-  - Artifact requirement: `lambda_function.zip` from Python workflow
+### Dependency Map
+- [x] **terraform → depends on → python**
+  - Terraform needs Lambda deployment package (zip file)
+  - Artifact: `lambda-package.zip`
+  - Build order: Python Lambda package → Terraform infrastructure
 
-## Existing Workflows Analysis
+### Existing Workflows Analysis
+- [x] **Existing workflows found**:
+  - `python-dev.yml` - Will be replaced with new environment-specific workflow
+  - `python-test.yml` - Will be replaced with new environment-specific workflow  
+  - `python-prd.yml` - Will be replaced with new environment-specific workflow
+  - `terraform-dev.yml` - Will be replaced with new environment-specific workflow
+  - `terraform-test.yml` - Will be replaced with new environment-specific workflow
+  - `terraform-prd.yml` - Will be replaced with new environment-specific workflow
 
-- [x] **Regeneration Mode**: All existing workflows will be removed and regenerated
-- [x] **Workflows to Remove**:
-  - python-dev.yml → Remove and regenerate
-  - python-test.yml → Remove and regenerate  
-  - python-prd.yml → Remove and regenerate
-  - terraform-dev.yml → Remove and regenerate
-  - terraform-test.yml → Remove and regenerate
-  - terraform-prd.yml → Remove and regenerate
+### Planned Workflows
+- [x] **Python Workflows** (3 environment-specific):
+  - `python-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch)
+  - `python-test.yml` - CI + Deploy to Test (triggers on `main` branch)
+  - `python-prd.yml` - CI + Deploy to Prod (triggers via workflow_run after test completion)
 
-## Planned Environment-Specific Workflows
+- [x] **Terraform Workflows** (3 environment-specific):
+  - `terraform-dev.yml` - CI + Deploy to Dev (waits for Python dev via workflow_run)
+  - `terraform-test.yml` - CI + Deploy to Test (waits for Python test via workflow_run)
+  - `terraform-prd.yml` - CI + Deploy to Prod (waits for Python prod via workflow_run)
 
-- [x] **Python Workflows**: 3 files (python-dev.yml, python-test.yml, python-prd.yml)
-- [x] **Terraform Workflows**: 3 files (terraform-dev.yml, terraform-test.yml, terraform-prd.yml)
-- [x] **Total Planned**: 6 environment-specific workflow files
+### Dependency Handling Strategy
+- [x] **Artifact Passing**: GitHub Actions artifacts for single dependency
+- [x] **Workflow Triggers**: Use `workflow_run` triggers for Terraform to wait for Python
+- [x] **Artifact Names**: Environment-specific naming (e.g., `lambda-package-dev`)
+- [x] **Verification**: Artifact existence checks before Terraform operations
 
-## Multi-Environment Strategy
+## Multi-Environment Deployment Strategy
+- [x] **Development**: Deploy to dev environment on `develop` branch push
+- [x] **Test**: Deploy to test environment on `main` branch push  
+- [x] **Production**: Auto-deploy to prod after successful test completion
+- [x] **Environment Protection**: GitHub environment protection rules for prod
 
-- [x] **Dev Environment**: Triggers on `develop` branch push
-- [x] **Test Environment**: Triggers on `main` branch push  
-- [x] **Prod Environment**: Triggers via `workflow_run` after successful test completion
-
-## Dependency Handling Strategy
-
-- [x] **Python Workflows**: Build and upload Lambda deployment packages as artifacts
-- [x] **Terraform Workflows**: Wait for Python workflows via `workflow_run` triggers
-- [x] **Artifact Passing**: Use `lambda-package-{environment}` naming convention
-- [x] **Artifact Placement**: Download to `./lambda-package/` then move to `./iac/terraform/lambda_function.zip`
-
-## Detection Complete
-
-All code types detected, dependencies mapped, and workflow plan created.
+## Summary
+- **Code Types**: Python (Lambda), Terraform (IaC)
+- **Dependencies**: Terraform depends on Python Lambda package
+- **Workflows**: 6 total (3 per code type, 1 per environment)
+- **Existing Workflows**: 6 existing workflows will be replaced
+- **Deployment Flow**: develop → dev, main → test → prod (auto)

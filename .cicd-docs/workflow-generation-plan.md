@@ -1,43 +1,33 @@
-# Workflow Generation Plan
+# Phase 2: Workflow Generation Plan
 
-## Generated Environment-Specific Workflows
+## Workflow Generation Tasks
 
-- [x] **Python Dev** (`python-dev.yml`): CI + Deploy to Dev (triggers on develop branch)
-- [x] **Python Test** (`python-test.yml`): CI + Deploy to Test (triggers on main branch)  
-- [x] **Python Prod** (`python-prd.yml`): CI + Deploy to Prod (workflow_run after Python Test)
-- [x] **Terraform Dev** (`terraform-dev.yml`): CI + Deploy to Dev (workflow_run after Python Dev + push fallback)
-- [x] **Terraform Test** (`terraform-test.yml`): CI + Deploy to Test (workflow_run after Python Test + push fallback)
-- [x] **Terraform Prod** (`terraform-prd.yml`): CI + Deploy to Prod (workflow_run after Terraform Test + Python Prod)
+### Python Workflows
+- [x] Generate `python-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch)
+- [x] Generate `python-test.yml` - CI + Deploy to Test (triggers on `main` branch)
+- [x] Generate `python-prd.yml` - CI + Deploy to Prod (triggers via workflow_run after test)
 
-## Dependency Handling Implementation
+### Terraform Workflows  
+- [x] Generate `terraform-dev.yml` - CI + Deploy to Dev (waits for Python dev via workflow_run)
+- [x] Generate `terraform-test.yml` - CI + Deploy to Test (waits for Python test via workflow_run)
+- [x] Generate `terraform-prd.yml` - CI + Deploy to Prod (waits for Python prod via workflow_run)
 
-- [x] **Python Workflows**: Build and upload Lambda deployment packages as `lambda-package-{environment}` artifacts
-- [x] **Terraform Workflows**: Download Lambda packages from upstream Python workflows using `actions/download-artifact@v4`
-- [x] **Artifact Placement**: Move downloaded packages to `./iac/terraform/lambda_function.zip` where Terraform expects them
-- [x] **Verification Steps**: Verify artifacts exist before Terraform operations
-- [x] **Workflow Triggers**: Terraform workflows wait for Python workflows via `workflow_run` triggers
+### Dependency Implementation
+- [x] Add workflow_run triggers for Terraform workflows to wait for Python
+- [x] Add artifact upload steps in Python workflows (lambda-package-{env})
+- [x] Add artifact download steps in Terraform workflows
+- [x] Add artifact verification before Terraform operations
+- [x] Configure checkout with ref parameter for workflow_run triggers
 
-## Multi-Environment Strategy Implementation
+### Validation
+- [x] Validate all workflow YAML syntax
+- [x] Verify GitHub Actions expressions use ${{ }} syntax
+- [x] Check workflow triggers and dependencies
+- [x] Validate environment configurations
+- [x] Confirm artifact passing implementation
 
-- [x] **Dev Environment**: Python Dev (develop branch) → Terraform Dev (workflow_run + push fallback)
-- [x] **Test Environment**: Python Test (main branch) → Terraform Test (workflow_run + push fallback)
-- [x] **Prod Environment**: Python Test → Python Prod → Terraform Test + Python Prod → Terraform Prod
-
-## CI/CD Standards Applied
-
-- [x] **Python Standards**: Lint (Flake8), Security (Bandit), Tests (pytest), Lambda packaging
-- [x] **Terraform Standards**: Validate, Plan, Security (Checkov), AWS OIDC, Terraform Cloud support
-- [x] **GitHub Actions Best Practices**: Proper checkout, artifact handling, environment protection
-
-## Workflow Linting Validation
-
-- [x] **YAML Syntax**: All workflows have valid YAML syntax
-- [x] **GitHub Actions Expressions**: All expressions use `${{ }}` syntax (hashFiles, conditions, etc.)
-- [x] **Required Fields**: All workflows have name, on, jobs, runs-on fields
-- [x] **Job Dependencies**: Valid needs relationships, no circular dependencies
-- [x] **Workflow Triggers**: Correct workflow_run and push trigger syntax
-- [x] **Environment Names**: Valid environment names (dev, test, prod)
-
-## Generation Complete
-
-All 6 environment-specific workflow files generated with dependency handling and linting validation passed.
+## Standards Application
+- [x] Apply Python standards from `python-standards.md`
+- [x] Apply Terraform standards from `terraform-standards.md`
+- [x] Follow AWS security best practices
+- [x] Include proper permissions and OIDC configuration
