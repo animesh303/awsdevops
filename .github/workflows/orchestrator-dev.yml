@@ -1,0 +1,141 @@
+name: Orchestrator Dev
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+  id-token: write
+  actions: write
+
+jobs:
+  python-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Find or trigger Python Dev workflow
+        uses: actions/github-script@v7
+        id: find-run
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'python-dev.yml',
+              head_sha: context.sha,
+              per_page: 1
+            });
+
+            if (runs.data.workflow_runs.length === 0) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'python-dev.yml',
+                ref: context.ref
+              });
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              const newRuns = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'python-dev.yml',
+                head_sha: context.sha,
+                per_page: 1
+              });
+              core.setOutput('run-id', newRuns.data.workflow_runs[0].id);
+            } else {
+              core.setOutput('run-id', runs.data.workflow_runs[0].id);
+            }
+
+      - name: Wait for Python Dev to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.ref }}
+          check-name: "Python Dev"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          allowed-conclusions: success
+
+      - name: Download Python artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package-dev
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.find-run.outputs.run-id }}
+
+  terraform-dev:
+    runs-on: ubuntu-latest
+    needs: [python-dev]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download artifacts from Python
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package-dev
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ needs.python-dev.outputs.run-id }}
+
+      - name: Place artifacts for Terraform
+        run: |
+          mkdir -p ./iac/terraform
+          cp ./lambda-package-dev/lambda-package.zip ./iac/terraform/lambda_function.zip
+          echo "✓ Lambda package placed for Terraform"
+
+      - name: Find or trigger Terraform Dev workflow
+        uses: actions/github-script@v7
+        id: find-run
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'terraform-dev.yml',
+              head_sha: context.sha,
+              per_page: 1
+            });
+
+            if (runs.data.workflow_runs.length === 0) {
+              await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'terraform-dev.yml',
+                ref: context.ref
+              });
+              await new Promise(resolve => setTimeout(resolve, 5000));
+              const newRuns = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'terraform-dev.yml',
+                head_sha: context.sha,
+                per_page: 1
+              });
+              core.setOutput('run-id', newRuns.data.workflow_runs[0].id);
+            } else {
+              core.setOutput('run-id', runs.data.workflow_runs[0].id);
+            }
+
+      - name: Wait for Terraform Dev to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.ref }}
+          check-name: "Terraform Dev"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+          allowed-conclusions: success
+
+  deployment-summary:
+    runs-on: ubuntu-latest
+    needs: [python-dev, terraform-dev]
+    if: ${{ always() }}
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python Dev | ${{ needs.python-dev.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Dev | ${{ needs.terraform-dev.result }} |" >> $GITHUB_STEP_SUMMARY
