@@ -6,14 +6,13 @@ This document defines patterns for generating orchestrator workflows that manage
 
 ## Overview
 
-**Problem**: When multiple code types have dependencies (e.g., Terraform depends on Python, Kubernetes depends on Docker, etc.), managing `workflow_run` triggers and artifact passing becomes complex and error-prone.
+**Problem**: When multiple code types have dependencies (e.g., Terraform depends on Python, Kubernetes depends on Docker, etc.), managing execution order and dependencies becomes complex and error-prone.
 
 **Solution**: Generate orchestrator workflows that:
 
 - Trigger on branch push (develop/main)
-- Invoke code type workflows in dependency order
-- Wait for each workflow to complete before starting the next
-- Handle artifact passing between workflows
+- Invoke code type workflows in dependency order using reusable workflow syntax
+- Each workflow automatically waits for the previous one to complete
 - Simplify the dependency graph
 
 ## Architecture
@@ -36,9 +35,8 @@ This document defines patterns for generating orchestrator workflows that manage
 Each orchestrator workflow:
 
 - Triggers on branch push (develop for dev, main for test/prd)
-- Contains jobs that invoke code type workflows in dependency order
-- Uses `workflow_run` to wait for each code type workflow to complete
-- Handles artifact passing between workflows
+- Uses reusable workflows with direct `uses` syntax to chain workflows sequentially
+- Each step automatically waits for the previous workflow to complete
 - Provides centralized error handling and reporting
 
 ## Dependency Resolution
@@ -59,14 +57,14 @@ Orchestrator workflows use topological sort to determine execution order:
    - Process code types in order: dependencies first, dependents after
    - Example order: `[python, docker, terraform, kubernetes]`
 
-3. **Generate Orchestrator Jobs**:
-   - One job per code type in dependency order
-   - Each job triggers the corresponding code type workflow
-   - Each job waits for previous jobs to complete
+3. **Generate Orchestrator Steps**:
+   - One step per code type in dependency order
+   - Each step uses `uses: ./.github/workflows/{code-type}-{env}.yml`
+   - Steps execute sequentially, automatically waiting for previous steps
 
 ## Orchestrator Workflow Pattern
 
-### Dev Environment Orchestrator
+Use reusable workflows with direct `uses` syntax for clean, simple chaining:
 
 ```yaml
 name: Orchestrator Dev
@@ -74,271 +72,51 @@ name: Orchestrator Dev
 on:
   push:
     branches: [develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
-  actions: write # Required to trigger other workflows
 
 jobs:
-  # Job 1: Invoke first code type (no dependencies)
-  invoke-python-dev:
+  orchestrate:
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Python Dev workflow
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const response = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'python-dev.yml',
-              ref: context.ref
-            });
-            console.log('Python Dev workflow triggered');
+      - name: Run Python Dev Workflow
+        uses: ./.github/workflows/python-dev.yml
 
-  # Job 2: Wait for Python Dev, then invoke Terraform Dev
-  wait-python-invoke-terraform-dev:
-    runs-on: ubuntu-latest
-    needs: [invoke-python-dev]
-    steps:
-      - name: Wait for Python Dev workflow
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.ref }}
-          check-name: "Python Dev"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
+      - name: Run Terraform Dev Workflow
+        uses: ./.github/workflows/terraform-dev.yml
 
-      - name: Download artifacts from Python Dev
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-package-dev
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Find the workflow run ID for Python Dev
-          run-id: ${{ steps.find-run.outputs.run-id }}
-
-      - name: Trigger Terraform Dev workflow
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const response = await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'terraform-dev.yml',
-              ref: context.ref
-            });
-            console.log('Terraform Dev workflow triggered');
+      - name: Run Kubernetes Dev Workflow
+        uses: ./.github/workflows/kubernetes-dev.yml
 ```
 
-### Alternative: Using workflow_run Pattern
-
-**RECOMMENDED**: Instead of manually triggering workflows, use `workflow_run` to wait for code type workflows:
+**Note**: This pattern requires code type workflows to be defined as reusable workflows with `workflow_call` trigger:
 
 ```yaml
-name: Orchestrator Dev
+# python-dev.yml
+name: Python Dev
 
 on:
+  workflow_call: # Required for reusable workflows
   push:
     branches: [develop]
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
-  # This job waits for all code type workflows to complete
-  # Code type workflows trigger independently on branch push
-  orchestrate-deployment:
+  deploy-dev:
     runs-on: ubuntu-latest
-    needs: [] # Start immediately
     steps:
-      - name: Wait for Python Dev
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.ref }}
-          check-name: "Python Dev"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
-
-      - name: Download Python artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-package-dev
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ steps.find-python-run.outputs.run-id }}
-
-      - name: Wait for Terraform Dev
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.ref }}
-          check-name: "Terraform Dev"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
-
-      - name: Deployment Summary
-        run: |
-          echo "✓ All workflows completed successfully"
-          echo "✓ Python Dev: Completed"
-          echo "✓ Terraform Dev: Completed"
+      # ... workflow steps
 ```
 
-### Recommended Pattern: Sequential Job Invocation
+**Benefits**:
 
-**BEST PRACTICE**: Use sequential jobs that trigger workflows and wait for completion:
-
-```yaml
-name: Orchestrator Dev
-
-on:
-  push:
-    branches: [develop]
-
-permissions:
-  contents: read
-  id-token: write
-  actions: write
-
-jobs:
-  # Step 1: Python (no dependencies)
-  python-dev:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Find Python Dev workflow run
-        uses: actions/github-script@v7
-        id: find-run
-        with:
-          script: |
-            // Find the most recent Python Dev workflow run for this commit
-            const runs = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'python-dev.yml',
-              head_sha: context.sha,
-              per_page: 1
-            });
-
-            if (runs.data.workflow_runs.length === 0) {
-              // Trigger the workflow if it hasn't run yet
-              await github.rest.actions.createWorkflowDispatch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'python-dev.yml',
-                ref: context.ref
-              });
-              // Wait a bit and find the run
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              const newRuns = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'python-dev.yml',
-                head_sha: context.sha,
-                per_page: 1
-              });
-              core.setOutput('run-id', newRuns.data.workflow_runs[0].id);
-            } else {
-              core.setOutput('run-id', runs.data.workflow_runs[0].id);
-            }
-
-      - name: Wait for Python Dev to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.ref }}
-          check-name: "Python Dev"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
-
-      - name: Download Python artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-package-dev
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ steps.find-run.outputs.run-id }}
-
-  # Step 2: Terraform (depends on Python)
-  terraform-dev:
-    runs-on: ubuntu-latest
-    needs: [python-dev]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download Python artifacts from previous job
-        uses: actions/download-artifact@v4
-        with:
-          name: lambda-package-dev
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ needs.python-dev.outputs.run-id }}
-
-      - name: Place artifacts for Terraform
-        run: |
-          mkdir -p ./iac/terraform
-          cp ./lambda-package-dev/lambda-package.zip ./iac/terraform/lambda_function.zip
-          echo "✓ Lambda package placed for Terraform"
-
-      - name: Find Terraform Dev workflow run
-        uses: actions/github-script@v7
-        id: find-run
-        with:
-          script: |
-            const runs = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'terraform-dev.yml',
-              head_sha: context.sha,
-              per_page: 1
-            });
-
-            if (runs.data.workflow_runs.length === 0) {
-              await github.rest.actions.createWorkflowDispatch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'terraform-dev.yml',
-                ref: context.ref
-              });
-              await new Promise(resolve => setTimeout(resolve, 5000));
-              const newRuns = await github.rest.actions.listWorkflowRuns({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'terraform-dev.yml',
-                head_sha: context.sha,
-                per_page: 1
-              });
-              core.setOutput('run-id', newRuns.data.workflow_runs[0].id);
-            } else {
-              core.setOutput('run-id', runs.data.workflow_runs[0].id);
-            }
-
-      - name: Wait for Terraform Dev to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.ref }}
-          check-name: "Terraform Dev"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
-
-  # Final: Deployment Summary
-  deployment-summary:
-    runs-on: ubuntu-latest
-    needs: [python-dev, terraform-dev]
-    if: always()
-    steps:
-      - name: Generate deployment summary
-        run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-          echo "| Workflow | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Python Dev | ${{ needs.python-dev.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Terraform Dev | ${{ needs.terraform-dev.result }} |" >> $GITHUB_STEP_SUMMARY
-```
+- Simplest syntax - no complex scripting needed
+- Automatic dependency chaining (each step waits for previous)
+- Clean, readable workflow structure
+- Native GitHub Actions feature
+- No need for workflow_dispatch or complex artifact handling
 
 ## Code Type Workflow Modifications
 
@@ -346,13 +124,13 @@ jobs:
 
 Code type workflows should:
 
-1. **Support workflow_dispatch trigger** (for orchestrator invocation):
+1. **Support workflow_call trigger** (required for reusable workflows):
 
    ```yaml
    on:
+     workflow_call: # Required for reusable workflows
      push:
        branches: [develop]
-     workflow_dispatch: # Allow orchestrator to trigger
    ```
 
 2. **Upload artifacts with consistent naming**:
@@ -441,32 +219,30 @@ def build_execution_order(dependency_map):
 ### Dev Environment (`orchestrator-dev.yml`)
 
 - **Trigger**: Push to `develop` branch
-- **Execution**: Invokes all code type workflows in dependency order
-- **Artifact Handling**: Downloads and passes artifacts between workflows
+- **Execution**: Invokes all code type workflows in dependency order using `uses` syntax
 - **Error Handling**: Stops on first failure, reports which workflow failed
 
 ### Test Environment (`orchestrator-test.yml`)
 
 - **Trigger**: Push to `main` branch
 - **Execution**: Same as dev, but for test environment
-- **Artifact Handling**: Uses test-specific artifact names
 - **Error Handling**: Same as dev
 
 ### Prod Environment (`orchestrator-prd.yml`)
 
 - **Trigger**: `workflow_run` after successful `orchestrator-test.yml` completion
 - **Execution**: Same pattern, but for prod environment
-- **Artifact Handling**: Uses prod-specific artifact names, longer retention
 - **Error Handling**: More strict - requires manual approval for retry
 
 ## Benefits of Orchestrator Pattern
 
 1. **Simplified Dependency Management**: Dependencies are managed in one place (orchestrator)
 2. **Clear Execution Order**: Topological sort ensures correct order
-3. **Centralized Error Handling**: One place to handle failures and report status
-4. **Reusable Code Type Workflows**: Code type workflows can still be triggered independently
-5. **Easier Debugging**: Single workflow run shows entire deployment pipeline
-6. **Scalability**: Easy to add new code types without modifying existing workflows
+3. **Simple Syntax**: Using reusable workflows (`uses: ./.github/workflows/wf.yml`) provides the cleanest, most readable workflow structure
+4. **Centralized Error Handling**: One place to handle failures and report status
+5. **Reusable Code Type Workflows**: Code type workflows can still be triggered independently
+6. **Easier Debugging**: Single workflow run shows entire deployment pipeline
+7. **Scalability**: Easy to add new code types without modifying existing workflows
 
 ## When to Use Orchestrators
 
@@ -492,9 +268,9 @@ When generating orchestrator workflows:
 - [ ] Build dependency graph from Phase 1 analysis
 - [ ] Calculate execution order using topological sort
 - [ ] Generate orchestrator workflow for each environment (dev/test/prd)
-- [ ] Modify code type workflows to support `workflow_dispatch` trigger
+- [ ] Use reusable workflow pattern (`uses: ./.github/workflows/{code-type}-{env}.yml`)
+- [ ] Modify code type workflows to support `workflow_call` trigger
 - [ ] Ensure consistent artifact naming across workflows
-- [ ] Add artifact download/upload steps in orchestrator
 - [ ] Add error handling and status reporting
 - [ ] Test orchestrator with simple dependency chain first
 - [ ] Document execution order in orchestrator workflow comments
