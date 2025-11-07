@@ -10,11 +10,9 @@ permissions:
   id-token: write
 
 jobs:
-  orchestrate:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run Python Dev Workflow
-        uses: ./.github/workflows/python-dev.yml
+  call-python-dev:
+    uses: ./.github/workflows/python-dev.yml
 
-      - name: Run Terraform Dev Workflow
-        uses: ./.github/workflows/terraform-dev.yml
+  call-terraform-dev:
+    needs: [call-python-dev]
+    uses: ./.github/workflows/terraform-dev.yml
