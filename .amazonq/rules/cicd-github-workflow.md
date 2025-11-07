@@ -230,6 +230,8 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 - Simplified dependency management (dependencies managed in one place)
 - Clear execution order (topological sort ensures correct order)
+- Simple syntax using reusable workflows (`uses: ./.github/workflows/wf.yml`)
+- Automatic dependency chaining (each step waits for previous)
 - Centralized error handling and reporting
 - Reusable code type workflows (can still be triggered independently)
 - Easier debugging (single workflow run shows entire deployment pipeline)
@@ -243,8 +245,8 @@ For each detected code type, generate **three separate workflow files**, one per
 **Deploy to Dev Workflow** (`.github/workflows/{code-type}-dev.yml`):
 
 - **Trigger**:
-  - **If no dependencies**: Runs on pushes to `develop` branch
-  - **If has dependencies**: Uses `workflow_run` trigger to wait for upstream workflows to complete, with `push` to `develop` branch as fallback
+  - Runs on pushes to `develop` branch
+  - Supports `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as separate parallel jobs where possible
   - Uploads build artifacts
@@ -257,8 +259,8 @@ For each detected code type, generate **three separate workflow files**, one per
 **Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
 
 - **Trigger**:
-  - **If no dependencies**: Runs on pushes to `main` branch
-  - **If has dependencies**: Uses `workflow_run` trigger to wait for upstream test workflows to complete, with `push` to `main` branch as fallback
+  - Runs on pushes to `main` branch
+  - Supports `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as separate parallel jobs where possible
   - Uploads build artifacts
@@ -270,9 +272,11 @@ For each detected code type, generate **three separate workflow files**, one per
 
 **Deploy to Prod Workflow** (`.github/workflows/{code-type}-prd.yml`):
 
-- **Trigger**: `workflow_run` on successful completion of `{code-type}-test.yml` workflow
+- **Trigger**: 
+  - `workflow_run` on successful completion of `{code-type}-test.yml` workflow
   - **Branch Requirement**: MUST only trigger when test workflow ran on `main` branch
   - Uses `branches: [main]` filter in `workflow_run` trigger
+  - Supports `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
 - **CI Jobs**: lint, test, security scan, artifact generation
   - Runs as part of the workflow
   - Uploads build artifacts
@@ -287,10 +291,10 @@ For each detected code type, generate **three separate workflow files**, one per
 - Each environment has its own workflow file
 - Each workflow contains CI jobs + deployment job for that environment
 - **Trigger Logic**:
-  - **Dev workflow**: `develop` branch push (or `workflow_run` if dependencies exist)
-  - **Test workflow**: `main` branch push (or `workflow_run` if dependencies exist)
-  - **Prod workflow**: `workflow_run` trigger after successful test workflow on `main` branch (always uses workflow_run)
-- **Dependency Handling**: Workflows with dependencies use `workflow_run` triggers to wait for upstream workflows, with push triggers as fallback
+  - **Dev workflow**: `develop` branch push + `workflow_call` (for orchestrator)
+  - **Test workflow**: `main` branch push + `workflow_call` (for orchestrator)
+  - **Prod workflow**: `workflow_run` trigger after successful test workflow on `main` branch + `workflow_call` (for orchestrator)
+- **Dependency Handling**: Orchestrator workflows manage execution order using reusable workflow pattern (`uses: ./.github/workflows/wf.yml`)
 
 ## Workflow Requirements
 

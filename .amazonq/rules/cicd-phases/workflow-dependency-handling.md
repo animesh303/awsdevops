@@ -256,7 +256,7 @@ See `workflow-common-issues.md` for more troubleshooting guidance.
    - Provides centralized error handling
 
 3. **Code Type Workflows**:
-   - Support `workflow_dispatch` trigger for orchestrator invocation
+   - Support `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
    - Can still be triggered independently via push triggers
    - Upload artifacts with consistent naming
 

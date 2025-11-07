@@ -124,27 +124,21 @@ If you need to conditionally run an entire job based on file existence, either:
 
      **Orchestrator Dev** (`.github/workflows/orchestrator-dev.yml`):
 
-     - **Trigger**: Push to `develop` branch
-     - **Jobs**: One job per code type in dependency order
-     - **Each Job**:
-       - Checks if code type workflow has run for this commit (if not, triggers it)
-       - Waits for code type workflow to complete
-       - Downloads artifacts from code type workflow (if needed for downstream)
-       - Passes artifacts to next job in sequence
-     - **Final Job**: Deployment summary showing status of all workflows
+     - **Trigger**: Push to `develop` branch (and `workflow_dispatch` for manual trigger)
+     - **Structure**: Single job with sequential steps, one step per code type in dependency order
+     - **Each Step**: Uses `uses: ./.github/workflows/{code-type}-{env}.yml` to call reusable workflows
+     - **Execution**: Steps execute sequentially, automatically waiting for previous step to complete
      - **Pattern**: Follow patterns from `orchestrator-workflow-patterns.md`
 
      **Orchestrator Test** (`.github/workflows/orchestrator-test.yml`):
 
-     - **Trigger**: Push to `main` branch
+     - **Trigger**: Push to `main` branch (and `workflow_dispatch` for manual trigger)
      - **Same structure as dev**, but for test environment
-     - Uses test-specific artifact names
 
      **Orchestrator Prod** (`.github/workflows/orchestrator-prd.yml`):
 
-     - **Trigger**: `workflow_run` after successful `orchestrator-test.yml` completion on `main` branch
+     - **Trigger**: `workflow_run` after successful `orchestrator-test.yml` completion on `main` branch (and `workflow_dispatch` for manual trigger)
      - **Same structure as dev/test**, but for prod environment
-     - Uses prod-specific artifact names
      - More strict error handling
 
    - **Orchestrator Workflow Structure**:
@@ -155,86 +149,35 @@ If you need to conditionally run an entire job based on file existence, either:
      on:
        push:
          branches: [develop]
+       workflow_dispatch:
 
      permissions:
        contents: read
        id-token: write
-       actions: write  # Required to trigger other workflows
 
      jobs:
-       # Job 1: First code type (no dependencies)
-       {code-type-1}-dev:
+       orchestrate:
          runs-on: ubuntu-latest
          steps:
-           - name: Checkout code
-             uses: actions/checkout@v4
+           - name: Run {code-type-1} Dev Workflow
+             uses: ./.github/workflows/{code-type-1}-dev.yml
 
-           - name: Find or trigger {code-type-1} Dev workflow
-             uses: actions/github-script@v7
-             id: find-run
-             with:
-               script: |
-                 // Implementation from orchestrator-workflow-patterns.md
+           - name: Run {code-type-2} Dev Workflow
+             uses: ./.github/workflows/{code-type-2}-dev.yml
 
-           - name: Wait for {code-type-1} Dev to complete
-             uses: lewagon/wait-on-check-action@v1.3.4
-             with:
-               ref: ${{ github.ref }}
-               check-name: '{Code Type 1} Dev'
-               repo-token: ${{ secrets.GITHUB_TOKEN }}
-               wait-interval: 10
-               allowed-conclusions: success
-
-           - name: Download artifacts
-             uses: actions/download-artifact@v4
-             with:
-               name: {code-type-1}-package-dev
-               github-token: ${{ secrets.GITHUB_TOKEN }}
-               run-id: ${{ steps.find-run.outputs.run-id }}
-
-       # Job 2: Second code type (depends on first)
-       {code-type-2}-dev:
-         runs-on: ubuntu-latest
-         needs: [{code-type-1}-dev]
-         steps:
-           - name: Checkout code
-             uses: actions/checkout@v4
-
-           - name: Download artifacts from {code-type-1}
-             uses: actions/download-artifact@v4
-             with:
-               name: {code-type-1}-package-dev
-               github-token: ${{ secrets.GITHUB_TOKEN }}
-               run-id: ${{ needs.{code-type-1}-dev.outputs.run-id }}
-
-           - name: Place artifacts for {code-type-2}
-             run: |
-               # Place artifacts where {code-type-2} expects them
-               # Follow patterns from workflow-dependency-handling.md
-
-           - name: Find or trigger {code-type-2} Dev workflow
-             # Similar to job 1
-
-       # Final: Deployment Summary
-       deployment-summary:
-         runs-on: ubuntu-latest
-         needs: [{code-type-1}-dev, {code-type-2}-dev, ...]
-         if: always()
-         steps:
-           - name: Generate deployment summary
-             run: |
-               echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
-               # List all workflows and their status
+           - name: Run {code-type-3} Dev Workflow
+             uses: ./.github/workflows/{code-type-3}-dev.yml
      ```
 
    - **Reference**: See `orchestrator-workflow-patterns.md` for complete patterns and implementation details
 
 5. **Generate Environment-Specific Workflows Per Detected Code Type:**
 
-   **IMPORTANT**: When generating workflows, respect dependency order. Workflows that depend on others must:
+   **IMPORTANT**: When generating workflows, orchestrator workflows manage dependency order. Individual code type workflows:
 
-   - Use `workflow_run` triggers to wait for upstream workflows to complete
-   - Download artifacts from upstream workflows when needed
+   - Support `workflow_call` trigger for orchestrator invocation
+   - Can still be triggered independently via push triggers
+   - Download artifacts from upstream workflows when needed (handled within workflow jobs)
    - Reference artifact locations (paths, URLs, tags) from upstream workflows
 
    For each detected code type, generate **three separate workflow files**:
@@ -242,12 +185,12 @@ If you need to conditionally run an entire job based on file existence, either:
    **Deploy to Dev Workflow** (`.github/workflows/{code-type}-dev.yml`):
 
    - **Workflow Trigger**:
-     - **Always use orchestrators**: Trigger on push to `develop` branch AND support `workflow_dispatch` for orchestrator invocation
+     - **Always use orchestrators**: Trigger on push to `develop` branch AND support `workflow_call` for orchestrator invocation
        ```yaml
        on:
+         workflow_call: # Required for reusable workflows (orchestrator pattern)
          push:
            branches: [develop]
-         workflow_dispatch: # Allow orchestrator to trigger
        ```
      - **Note**: GitHub Actions doesn't support conditions at workflow trigger level. Conditions must be at job level. If using `workflow_run`, add condition check at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
    - **CI Jobs**:
@@ -299,12 +242,12 @@ If you need to conditionally run an entire job based on file existence, either:
    **Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
 
    - **Workflow Trigger**:
-     - **Always use orchestrators**: Trigger on push to `main` branch AND support `workflow_dispatch` for orchestrator invocation
+     - **Always use orchestrators**: Trigger on push to `main` branch AND support `workflow_call` for orchestrator invocation
        ```yaml
        on:
+         workflow_call: # Required for reusable workflows (orchestrator pattern)
          push:
            branches: [main]
-         workflow_dispatch: # Allow orchestrator to trigger
        ```
      - **Note**: GitHub Actions doesn't support conditions at workflow trigger level. Conditions must be at job level. If using `workflow_run`, add condition check at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
    - **CI Jobs**:
@@ -341,14 +284,14 @@ If you need to conditionally run an entire job based on file existence, either:
    **Deploy to Prod Workflow** (`.github/workflows/{code-type}-prd.yml`):
 
    - **Workflow Trigger**:
-     - **Always use orchestrators**: Trigger via `workflow_run` after successful test workflow AND support `workflow_dispatch` for orchestrator invocation
+     - **Always use orchestrators**: Trigger via `workflow_run` after successful test workflow AND support `workflow_call` for orchestrator invocation
      ```yaml
      on:
+       workflow_call: # Required for reusable workflows (orchestrator pattern)
        workflow_run:
          workflows: ["{Code Type} Test"]
          types: [completed]
          branches: [main]
-         workflow_dispatch: # Allow orchestrator to trigger
      ```
    - **Condition Check**:
      ```yaml
