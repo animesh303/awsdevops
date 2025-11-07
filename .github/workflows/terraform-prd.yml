@@ -2,7 +2,7 @@ name: Terraform Prod
 
 on:
   workflow_run:
-    workflows: ["Terraform Test", "Python Prod"]
+    workflows: ["Terraform Test"]
     types: [completed]
     branches: [main]
   workflow_dispatch:
@@ -114,8 +114,8 @@ jobs:
           checkov -d . || true
 
   deploy-prod:
-    needs: [tf-validate, tf-plan, tf-security]
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: [tf-validate, tf-plan, tf-security]
     runs-on: ubuntu-latest
     environment: prod
     steps:

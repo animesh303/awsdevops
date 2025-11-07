@@ -100,8 +100,8 @@ jobs:
           pytest tests/ --cov=. --cov-report=xml --cov-report=html || true
 
   deploy-prod:
-    needs: [python-lint, python-security, python-tests]
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    needs: [python-lint, python-security, python-tests]
     runs-on: ubuntu-latest
     environment: prod
     steps:

@@ -24,7 +24,6 @@ jobs:
         id: find-run
         with:
           script: |
-            // Find the most recent Python Test workflow run for this commit
             const runs = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -34,14 +33,12 @@ jobs:
             });
 
             if (runs.data.workflow_runs.length === 0) {
-              // Trigger the workflow if it hasn't run yet
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'python-test.yml',
                 ref: context.ref
               });
-              // Wait a bit and find the run
               await new Promise(resolve => setTimeout(resolve, 5000));
               const newRuns = await github.rest.actions.listWorkflowRuns({
                 owner: context.repo.owner,

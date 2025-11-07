@@ -29,7 +29,6 @@ jobs:
         id: find-run
         with:
           script: |
-            // Find the most recent Python Prod workflow run for this commit
             const runs = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -39,14 +38,12 @@ jobs:
             });
 
             if (runs.data.workflow_runs.length === 0) {
-              // Trigger the workflow if it hasn't run yet
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'python-prd.yml',
                 ref: context.ref
               });
-              // Wait a bit and find the run
               await new Promise(resolve => setTimeout(resolve, 5000));
               const newRuns = await github.rest.actions.listWorkflowRuns({
                 owner: context.repo.owner,
@@ -151,7 +148,7 @@ jobs:
     steps:
       - name: Generate deployment summary
         run: |
-          echo "## Production Environment Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Prod Environment Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Workflow | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Python Prod | ${{ needs.python-prod.result }} |" >> $GITHUB_STEP_SUMMARY
@@ -159,4 +156,3 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Execution Order**: Python → Terraform" >> $GITHUB_STEP_SUMMARY
           echo "**Dependency**: Terraform depends on Python Lambda package" >> $GITHUB_STEP_SUMMARY
-          echo "**Environment**: Production (protected with approval gates)" >> $GITHUB_STEP_SUMMARY

@@ -79,7 +79,7 @@ jobs:
         run: |
           cat > $HOME/.terraformrc << EOF
           credentials "app.terraform.io" {
-          token = "$TFC_TOKEN"
+            token = "$TFC_TOKEN"
           }
           EOF
       - name: Terraform Init
