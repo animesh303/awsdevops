@@ -1,12 +1,14 @@
 # Changelog:
-# AWS-5 - Initial S3 Lambda trigger infrastructure - 2025-01-27
+# AWS-5 - Initial S3 bucket and Lambda function infrastructure - 2025-01-28
 
 # S3 Bucket
 resource "aws_s3_bucket" "demo_bucket" {
   bucket = var.bucket_name
+
   tags = {
-    JiraId    = var.jira_id
-    ManagedBy = "terraform"
+    JiraId      = "AWS-5"
+    ManagedBy   = "terraform"
+    Environment = var.environment
   }
 }
 
@@ -31,40 +33,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "demo_bucket_encry
   }
 }
 
-# Lambda Function
-resource "aws_lambda_function" "hello_world" {
-  filename      = "lambda_function.zip"
-  function_name = var.lambda_function_name
-  role          = aws_iam_role.lambda_execution_role.arn
-  handler       = "lambda_handler.lambda_handler"
-  runtime       = "python3.12"
-  timeout       = 30
-
-  tags = {
-    JiraId    = var.jira_id
-    ManagedBy = "terraform"
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.lambda_logs,
-    aws_cloudwatch_log_group.lambda_logs,
-  ]
-}
-
-# CloudWatch Log Group
-resource "aws_cloudwatch_log_group" "lambda_logs" {
-  name              = "/aws/lambda/${var.lambda_function_name}"
-  retention_in_days = 14
-
-  tags = {
-    JiraId    = var.jira_id
-    ManagedBy = "terraform"
-  }
-}
-
 # IAM Role for Lambda
-resource "aws_iam_role" "lambda_execution_role" {
-  name = "${var.lambda_function_name}-execution-role"
+resource "aws_iam_role" "lambda_role" {
+  name = "${var.lambda_function_name}_role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -80,25 +51,29 @@ resource "aws_iam_role" "lambda_execution_role" {
   })
 
   tags = {
-    JiraId    = var.jira_id
-    ManagedBy = "terraform"
+    JiraId      = "AWS-5"
+    ManagedBy   = "terraform"
+    Environment = var.environment
   }
 }
 
-# IAM Policy for Lambda Logs
-resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role       = aws_iam_role.lambda_execution_role.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-# IAM Policy for S3 Read Access
-resource "aws_iam_role_policy" "lambda_s3_policy" {
-  name = "${var.lambda_function_name}-s3-policy"
-  role = aws_iam_role.lambda_execution_role.id
+# IAM Policy for Lambda
+resource "aws_iam_role_policy" "lambda_policy" {
+  name = "${var.lambda_function_name}_policy"
+  role = aws_iam_role.lambda_role.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:*"
+      },
       {
         Effect = "Allow"
         Action = [
@@ -110,8 +85,41 @@ resource "aws_iam_role_policy" "lambda_s3_policy" {
   })
 }
 
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "lambda_logs" {
+  name              = "/aws/lambda/${var.lambda_function_name}"
+  retention_in_days = 14
+
+  tags = {
+    JiraId      = "AWS-5"
+    ManagedBy   = "terraform"
+    Environment = var.environment
+  }
+}
+
+# Lambda Function
+resource "aws_lambda_function" "hello_world" {
+  filename      = "lambda_function.zip"
+  function_name = var.lambda_function_name
+  role          = aws_iam_role.lambda_role.arn
+  handler       = "lambda_handler.lambda_handler"
+  runtime       = "python3.12"
+  timeout       = 30
+
+  depends_on = [
+    aws_iam_role_policy.lambda_policy,
+    aws_cloudwatch_log_group.lambda_logs,
+  ]
+
+  tags = {
+    JiraId      = "AWS-5"
+    ManagedBy   = "terraform"
+    Environment = var.environment
+  }
+}
+
 # Lambda Permission for S3
-resource "aws_lambda_permission" "allow_s3" {
+resource "aws_lambda_permission" "s3_invoke" {
   statement_id  = "AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.hello_world.function_name
@@ -128,5 +136,5 @@ resource "aws_s3_bucket_notification" "bucket_notification" {
     events              = ["s3:ObjectCreated:*"]
   }
 
-  depends_on = [aws_lambda_permission.allow_s3]
+  depends_on = [aws_lambda_permission.s3_invoke]
 }

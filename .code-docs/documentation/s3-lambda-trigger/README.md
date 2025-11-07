@@ -1,70 +1,70 @@
-# S3 Lambda Trigger - Hello World Demo
+# S3 Lambda Trigger Implementation
 
 ## Overview
 
-This implementation creates an event-driven serverless architecture that automatically processes files uploaded to an S3 bucket by triggering a Lambda function that outputs "Hello World".
+This implementation creates an event-driven serverless architecture that automatically processes files uploaded to an S3 bucket using AWS Lambda.
 
 ## Architecture
 
 - **S3 Bucket**: `demobucketforawsaidevops` - Receives file uploads
-- **Lambda Function**: `hello-world-s3-trigger` - Processes S3 events and logs "Hello World"
-- **IAM Role**: Lambda execution role with minimal S3 read permissions
-- **CloudWatch**: Logging and monitoring for Lambda execution
+- **Lambda Function**: `hello_world` - Processes S3 events with "Hello World" demo
+- **IAM Role**: Least privilege access for Lambda execution
+- **CloudWatch**: Logging and monitoring
 
-## Prerequisites
+## Quick Start
 
-- AWS CLI configured with appropriate permissions
-- Terraform >= 1.1 installed
-- Python 3.12 for local development/testing
+### Prerequisites
 
-## Deployment
+- AWS CLI configured
+- Terraform >= 1.1
+- Python 3.12
 
-### 1. Deploy Infrastructure
+### Deployment
 
-```bash
-cd iac/terraform
-terraform init
-terraform plan
-terraform apply
-```
+1. **Deploy Infrastructure**:
+   ```bash
+   cd iac/terraform
+   terraform init
+   terraform plan
+   terraform apply
+   ```
 
-### 2. Package Lambda Function
+2. **Package Lambda Function**:
+   ```bash
+   cd src/lambda-python-s3-lambda-trigger
+   zip -r ../../iac/terraform/lambda_function.zip .
+   ```
 
-```bash
-cd src/lambda-python-s3-lambda-trigger
-zip -r lambda_function.zip lambda_handler.py
-cp lambda_function.zip ../../iac/terraform/
-```
+3. **Test the Implementation**:
+   ```bash
+   aws s3 cp test-file.txt s3://demobucketforawsaidevops/
+   aws logs tail /aws/lambda/hello_world --follow
+   ```
 
-### 3. Update Lambda Function (if needed)
+## Configuration
 
-```bash
-cd iac/terraform
-terraform apply -replace=aws_lambda_function.hello_world
-```
+### Environment Variables
 
-## Testing
+- `bucket_name`: S3 bucket name (default: demobucketforawsaidevops)
+- `lambda_function_name`: Lambda function name (default: hello_world)
+- `environment`: Environment name (default: dev)
 
-1. Upload a file to the S3 bucket:
-```bash
-aws s3 cp test-file.txt s3://demobucketforawsaidevops/
-```
+### AWS Resources
 
-2. Check CloudWatch logs:
-```bash
-aws logs tail /aws/lambda/hello-world-s3-trigger --follow
-```
+- S3 Bucket with encryption and security settings
+- Lambda function with Python 3.12 runtime
+- IAM role with S3 read permissions
+- CloudWatch log group with 14-day retention
 
-## Expected Output
+## Monitoring
 
-When a file is uploaded, the Lambda function will log:
-- "Hello World! Lambda function triggered by S3 event"
-- S3 event details (bucket name, object key, event name)
-- Success message with processed record count
+- **CloudWatch Logs**: `/aws/lambda/hello_world`
+- **Metrics**: Lambda execution metrics in CloudWatch
+- **Events**: S3 event notifications trigger Lambda execution
 
-## Cleanup
+## Security
 
-```bash
-cd iac/terraform
-terraform destroy
-```
+- Private S3 bucket with public access blocked
+- IAM least privilege principles
+- Server-side encryption enabled
+- No hardcoded credentials

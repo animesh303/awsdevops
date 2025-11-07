@@ -10,8 +10,11 @@ permissions:
   actions: write
 
 jobs:
+  # Step 1: Python (no dependencies)
   python-test:
     runs-on: ubuntu-latest
+    outputs:
+      run-id: ${{ steps.find-run.outputs.run-id }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -21,6 +24,7 @@ jobs:
         id: find-run
         with:
           script: |
+            // Find the most recent Python Test workflow run for this commit
             const runs = await github.rest.actions.listWorkflowRuns({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -30,12 +34,14 @@ jobs:
             });
 
             if (runs.data.workflow_runs.length === 0) {
+              // Trigger the workflow if it hasn't run yet
               await github.rest.actions.createWorkflowDispatch({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 workflow_id: 'python-test.yml',
                 ref: context.ref
               });
+              // Wait a bit and find the run
               await new Promise(resolve => setTimeout(resolve, 5000));
               const newRuns = await github.rest.actions.listWorkflowRuns({
                 owner: context.repo.owner,
@@ -64,7 +70,9 @@ jobs:
           name: lambda-package-test
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ steps.find-run.outputs.run-id }}
+          path: ./lambda-package
 
+  # Step 2: Terraform (depends on Python)
   terraform-test:
     runs-on: ubuntu-latest
     needs: [python-test]
@@ -72,17 +80,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download artifacts from Python
+      - name: Download Python artifacts from previous job
         uses: actions/download-artifact@v4
         with:
           name: lambda-package-test
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ needs.python-test.outputs.run-id }}
+          path: ./lambda-package
 
       - name: Place artifacts for Terraform
         run: |
           mkdir -p ./iac/terraform
-          cp ./lambda-package-test/lambda-package.zip ./iac/terraform/lambda_function.zip
+          cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
           echo "✓ Lambda package placed for Terraform"
 
       - name: Find or trigger Terraform Test workflow
@@ -127,15 +136,19 @@ jobs:
           wait-interval: 10
           allowed-conclusions: success
 
+  # Final: Deployment Summary
   deployment-summary:
     runs-on: ubuntu-latest
     needs: [python-test, terraform-test]
-    if: ${{ always() }}
+    if: always()
     steps:
       - name: Generate deployment summary
         run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Environment Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "| Workflow | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Python Test | ${{ needs.python-test.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Terraform Test | ${{ needs.terraform-test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Execution Order**: Python → Terraform" >> $GITHUB_STEP_SUMMARY
+          echo "**Dependency**: Terraform depends on Python Lambda package" >> $GITHUB_STEP_SUMMARY

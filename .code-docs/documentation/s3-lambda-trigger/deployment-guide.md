@@ -1,88 +1,62 @@
-# Deployment Guide - S3 Lambda Trigger
+# Deployment Guide
 
 ## Step-by-Step Deployment
 
-### 1. Prepare Environment
+### 1. Prepare Lambda Package
 
 ```bash
-# Navigate to project root
-cd /path/to/genai-devops
-
-# Verify Terraform installation
-terraform version  # Should be >= 1.1
-
-# Configure AWS credentials (if not already done)
-aws configure
-```
-
-### 2. Package Lambda Function
-
-```bash
-# Navigate to Lambda source directory
 cd src/lambda-python-s3-lambda-trigger
-
-# Create deployment package
-zip -r lambda_function.zip lambda_handler.py
-
-# Copy to Terraform directory
-cp lambda_function.zip ../../iac/terraform/
+zip -r ../../iac/terraform/lambda_function.zip .
 ```
 
-### 3. Deploy Infrastructure
+### 2. Deploy Infrastructure
 
 ```bash
-# Navigate to Terraform directory
 cd iac/terraform
-
-# Initialize Terraform
 terraform init
-
-# Review planned changes
 terraform plan
-
-# Apply infrastructure changes
 terraform apply
-# Type 'yes' when prompted
 ```
 
-### 4. Verify Deployment
+### 3. Verify Deployment
 
 ```bash
-# Check S3 bucket creation
-aws s3 ls | grep demobucketforawsaidevops
+# Check S3 bucket
+aws s3 ls s3://demobucketforawsaidevops
 
 # Check Lambda function
-aws lambda get-function --function-name hello-world-s3-trigger
+aws lambda get-function --function-name hello_world
 
-# Check CloudWatch log group
-aws logs describe-log-groups --log-group-name-prefix "/aws/lambda/hello-world-s3-trigger"
+# Test the trigger
+echo "Hello World Test" > test.txt
+aws s3 cp test.txt s3://demobucketforawsaidevops/
+aws logs tail /aws/lambda/hello_world --follow
 ```
 
-### 5. Test the Integration
+## Environment-Specific Deployment
 
-```bash
-# Create a test file
-echo "Hello World Test" > test-upload.txt
+### Development
+- Uses default variables
+- 14-day log retention
+- Basic monitoring
 
-# Upload to S3 bucket
-aws s3 cp test-upload.txt s3://demobucketforawsaidevops/
-
-# Monitor Lambda logs (in separate terminal)
-aws logs tail /aws/lambda/hello-world-s3-trigger --follow
-```
+### Production
+- Update variables in `terraform.tfvars`
+- Extended log retention
+- Enhanced monitoring and alerting
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Terraform Cloud Authentication**
-   - Ensure TFC_TOKEN is set in environment
-   - Verify workspace permissions
+1. **Lambda package not found**
+   - Ensure `lambda_function.zip` exists in `iac/terraform/`
+   - Re-run the package creation step
 
-2. **Lambda Package Missing**
-   - Ensure lambda_function.zip exists in iac/terraform/
-   - Re-run packaging steps if needed
+2. **S3 permissions error**
+   - Verify IAM role has S3 read permissions
+   - Check bucket policy and ACLs
 
-3. **S3 Permissions**
-   - Verify AWS credentials have S3 and Lambda permissions
-   - Check IAM policies are correctly applied
+3. **Lambda not triggering**
+   - Verify S3 event notification configuration
+   - Check Lambda permissions for S3 invocation

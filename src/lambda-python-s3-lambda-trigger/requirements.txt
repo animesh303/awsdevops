@@ -1,2 +1,2 @@
-# AWS Lambda Python dependencies for S3 trigger function
-# No external dependencies required for Hello World demo
+# AWS Lambda Python dependencies
+# No external dependencies required for this Hello World demo

@@ -1,5 +1,5 @@
 # Changelog:
-# AWS-5 - Initial provider version constraints - 2025-01-27
+# AWS-5 - Initial provider version constraints - 2025-01-28
 
 terraform {
   required_version = ">= 1.1"
@@ -9,4 +9,8 @@ terraform {
       version = "~> 5.0"
     }
   }
+}
+
+provider "aws" {
+  region = "us-east-1"
 }
