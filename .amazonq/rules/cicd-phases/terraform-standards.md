@@ -99,7 +99,12 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
       push:
         branches: [develop] # Also trigger on direct push
     ```
-- **Steps** (CRITICAL ORDER):
+- **MANDATORY Dependency Detection**:
+  - **If Terraform code references artifacts** (e.g., `filename = "lambda_function.zip"` in any `.tf` file), Terraform HAS dependencies
+  - **Dependency handling steps below are MANDATORY** - DO NOT SKIP even if orchestrator workflows are used
+  - These steps ensure artifacts are available when Terraform runs
+- **Steps** (CRITICAL ORDER - ALL STEPS MANDATORY IF DEPENDENCIES DETECTED):
+
   1. **CRITICAL - Checkout code**: For workflow_run triggers, ALL jobs MUST checkout with ref parameter:
      ```yaml
      - uses: actions/checkout@v4
@@ -110,18 +115,29 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
      ```yaml
      - uses: actions/checkout@v4
      ```
-  2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
+  2. **Download dependencies from upstream workflows FIRST** (MANDATORY if Terraform depends on other code types):
+
+     - **CRITICAL**: This step is MANDATORY if Terraform code references artifacts (e.g., `filename = "lambda_function.zip"`)
+     - **DO NOT SKIP**: Even if orchestrator workflows are used, this step ensures artifacts are available
+     - **PREFERRED - Use Artifact Mapping**: If `.code-docs/artifact-mappings.json` exists:
+       - Read mapping file to get exact artifact names and paths
+       - For each mapping entry in `mappings` array:
+         - Use `environment_artifacts.dev` for artifact name (e.g., `lambda-package-dev`)
+         - Use `artifact_destination_path` for final placement location
+     - **FALLBACK - Manual Detection**: If mapping file does not exist, use code analysis to determine artifact names
+
      ```yaml
+     # Example for single dependency (from mapping file or code analysis)
      - name: Download Lambda package from upstream workflow
        uses: actions/download-artifact@v4
        continue-on-error: true
        id: download-artifact
        with:
-         name: lambda-package-dev # Must match the artifact name uploaded by Python workflow
+         name: lambda-package-dev # Use artifact name from mapping file (environment_artifacts.dev) or code analysis
          run-id: ${{ github.event.workflow_run.id }}
          github-token: ${{ secrets.GITHUB_TOKEN }}
          path: ./lambda-package # Downloads to ./lambda-package/lambda-package.zip
-     
+
      - name: Verify artifact downloaded successfully
        if: steps.download-artifact.outcome != 'success'
        run: |
@@ -129,33 +145,85 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
          exit 1
      ```
+
+     ```yaml
+     # Example for multiple dependencies (from mapping file)
+     - name: Download Lambda packages from upstream workflows
+       uses: actions/download-artifact@v4
+       continue-on-error: true
+       id: download-artifact-1
+       with:
+         name: ${{ fromJSON(steps.read-mapping.outputs.mappings)[0].environment_artifacts.dev }}
+         run-id: ${{ github.event.workflow_run.id }}
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         path: ./lambda-packages
+
+     - name: Download second Lambda package
+       uses: actions/download-artifact@v4
+       continue-on-error: true
+       id: download-artifact-2
+       with:
+         name: ${{ fromJSON(steps.read-mapping.outputs.mappings)[1].environment_artifacts.dev }}
+         run-id: ${{ github.event.workflow_run.id }}
+         github-token: ${{ secrets.GITHUB_TOKEN }}
+         path: ./lambda-packages
+     ```
+
      - **Note**: After download, the artifact will be at `./lambda-package/lambda-package.zip` (or the filename uploaded by upstream workflow)
      - **For single dependency**: Always use `actions/download-artifact@v4` with `run-id` (shown above)
-     - **For multiple dependencies**: Download from S3/container registry where each upstream workflow uploads independently
-  3. **Place artifact in correct location** where Terraform code expects it:
+     - **For multiple dependencies**:
+       - **If mapping file exists**: Download each artifact using its specific `environment_artifacts.dev` name
+       - **If mapping file does not exist**: Download from S3/container registry where each upstream workflow uploads independently
+     - **For orchestrator workflows**: Artifacts may be passed via orchestrator, but this step provides fallback and verification
+
+  3. **Place artifact in correct location** where Terraform code expects it (MANDATORY):
+     - **CRITICAL**: This step is MANDATORY if Terraform code references artifacts
+     - **PREFERRED - Use Artifact Mapping**: If `.code-docs/artifact-mappings.json` exists:
+       - Read `artifact_destination_path` from mapping file for exact placement location
+       - For multiple artifacts, use each mapping entry's `artifact_destination_path`
+     - **FALLBACK - Path Detection**: If mapping file does not exist, analyze Terraform code to find exact path where artifact is expected
+       - If Terraform uses: `filename = "lambda_function.zip"` → Place at `iac/terraform/lambda_function.zip` (relative to repo root)
+       - If Terraform uses: `source = "./lambda_function.zip"` → Place in same directory as the `.tf` file
+       - If Terraform uses variable: Check variable definition to determine path
      ```yaml
+     # Example for single dependency (from mapping file)
      - name: Move Lambda package to Terraform directory
        run: |
-         # CRITICAL: Check the actual path referenced in Terraform code (e.g., in s3-lambda-trigger-main.tf)
-         # If Terraform code uses: filename = "lambda_function.zip"
-         # Place it in the same directory as the Terraform file that references it
-         # Example: If Terraform code is in iac/terraform/ and references lambda_function.zip
-         mkdir -p ./iac/terraform
-         cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
-         # Or if Terraform uses a variable or different path, adjust accordingly:
-         # cp ./lambda-package/lambda-package.zip ./path/that/terraform/expects/lambda_function.zip
-         # Set environment variable if Terraform uses TF_VAR:
-         echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
+         # Use artifact_destination_path from mapping file
+         DEST_PATH="./iac/terraform/lambda_function.zip"
+         mkdir -p $(dirname "$DEST_PATH")
+         cp ./lambda-package/lambda-package.zip "$DEST_PATH"
+         echo "TF_VAR_lambda_package_path=$(pwd)/$DEST_PATH" >> $GITHUB_ENV
      ```
-  4. **Verify artifact exists** before Terraform operations:
      ```yaml
+     # Example for multiple dependencies (from mapping file)
+     - name: Move Lambda packages to Terraform directories
+       run: |
+         # For each mapping entry, place artifact at artifact_destination_path
+         # Example: Place first Lambda at iac/terraform/lambda_function_1.zip
+         #          Place second Lambda at iac/terraform/lambda_function_2.zip
+         mkdir -p ./iac/terraform
+         cp ./lambda-packages/lambda-package-1.zip ./iac/terraform/lambda_function_1.zip
+         cp ./lambda-packages/lambda-package-2.zip ./iac/terraform/lambda_function_2.zip
+         echo "TF_VAR_lambda_package_path_1=$(pwd)/iac/terraform/lambda_function_1.zip" >> $GITHUB_ENV
+         echo "TF_VAR_lambda_package_path_2=$(pwd)/iac/terraform/lambda_function_2.zip" >> $GITHUB_ENV
+     ```
+     - **MANDATORY**: This step MUST be included if dependencies are detected
+  4. **Verify artifact exists** before Terraform operations (MANDATORY):
+     - **CRITICAL**: This verification step is MANDATORY to ensure Terraform has required artifacts
+     - **PREFERRED - Use Artifact Mapping**: If `.code-docs/artifact-mappings.json` exists:
+       - Verify artifact exists at `artifact_destination_path` from mapping file
+       - For multiple artifacts, verify each one at its respective `artifact_destination_path`
+     - **FALLBACK - Path Verification**: If mapping file does not exist, verify the exact path that Terraform code references (from step 3)
+     ```yaml
+     # Example for single dependency (from mapping file)
      - name: Verify Lambda package exists
        run: |
-         # CRITICAL: Verify the exact path that Terraform code references
-         # Check your Terraform code to find the exact filename and path expected
+         # Use artifact_destination_path from mapping file
          TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
          if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
            echo "Error: Lambda package not found at: $TERRAFORM_LAMBDA_PATH"
+           echo "Terraform code expects this file - deployment will fail without it"
            echo "Checking downloaded artifact location:"
            ls -la ./lambda-package/ || echo "lambda-package directory not found"
            echo "Current directory structure:"
@@ -165,6 +233,24 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          echo "✓ Lambda package verified at: $TERRAFORM_LAMBDA_PATH"
          ls -lh "$TERRAFORM_LAMBDA_PATH"
      ```
+     ```yaml
+     # Example for multiple dependencies (from mapping file)
+     - name: Verify all Lambda packages exist
+       run: |
+         # Verify each artifact at its artifact_destination_path
+         PATHS=(
+           "./iac/terraform/lambda_function_1.zip"
+           "./iac/terraform/lambda_function_2.zip"
+         )
+         for PATH in "${PATHS[@]}"; do
+           if [ ! -f "$PATH" ]; then
+             echo "Error: Lambda package not found at: $PATH"
+             exit 1
+           fi
+           echo "✓ Lambda package verified at: $PATH"
+         done
+     ```
+     - **MANDATORY**: This verification MUST be included if dependencies are detected
   5. Configure AWS credentials via OIDC (mandatory)
   6. Configure Terraform Cloud (if applicable)
   7. **Pass dependency artifacts to Terraform**:
@@ -193,7 +279,11 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
     ```
     **Note**: For dependencies, test workflow can wait for upstream test workflow via workflow_run, with push as fallback
 - **Condition**: If using `workflow_run`, add condition at job level: `if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}`
-- **Steps** (CRITICAL ORDER):
+- **MANDATORY Dependency Detection**:
+  - **If Terraform code references artifacts** (e.g., `filename = "lambda_function.zip"` in any `.tf` file), Terraform HAS dependencies
+  - **Dependency handling steps below are MANDATORY** - DO NOT SKIP even if orchestrator workflows are used
+- **Steps** (CRITICAL ORDER - ALL STEPS MANDATORY IF DEPENDENCIES DETECTED):
+
   1. **CRITICAL - Checkout code**: For workflow_run triggers, ALL jobs MUST checkout with ref parameter:
      ```yaml
      - uses: actions/checkout@v4
@@ -204,7 +294,11 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
      ```yaml
      - uses: actions/checkout@v4
      ```
-  2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
+  2. **Download dependencies from upstream workflows FIRST** (MANDATORY if Terraform depends on other code types):
+
+     - **CRITICAL**: This step is MANDATORY if Terraform code references artifacts (e.g., `filename = "lambda_function.zip"`)
+     - **DO NOT SKIP**: Even if orchestrator workflows are used, this step ensures artifacts are available
+
      ```yaml
      - name: Download Lambda package from upstream workflow
        uses: actions/download-artifact@v4
@@ -215,7 +309,7 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          run-id: ${{ github.event.workflow_run.id }}
          github-token: ${{ secrets.GITHUB_TOKEN }}
          path: ./lambda-package
-     
+
      - name: Verify artifact downloaded successfully
        if: steps.download-artifact.outcome != 'success'
        run: |
@@ -223,9 +317,14 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
          exit 1
      ```
+
      - **For single dependency**: Always use `actions/download-artifact@v4` with `run-id` (shown above)
      - **For multiple dependencies**: Download from S3/container registry where each upstream workflow uploads independently
-  3. **Place artifact in correct location** where Terraform code expects it:
+     - **MANDATORY**: This step MUST be included if dependencies are detected
+
+  3. **Place artifact in correct location** where Terraform code expects it (MANDATORY):
+     - **CRITICAL**: This step is MANDATORY if Terraform code references artifacts
+     - **Path Detection**: Analyze Terraform code to find exact path where artifact is expected
      ```yaml
      - name: Move Lambda package to Terraform directory
        run: |
@@ -233,16 +332,21 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
          echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
      ```
-  4. **Verify artifact exists** before Terraform operations:
+     - **MANDATORY**: This step MUST be included if dependencies are detected
+  4. **Verify artifact exists** before Terraform operations (MANDATORY):
+     - **CRITICAL**: This verification step is MANDATORY to ensure Terraform has required artifacts
      ```yaml
      - name: Verify Lambda package exists
        run: |
-         if [ ! -f "./iac/terraform/lambda_function.zip" ]; then
+         TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
+         if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
            echo "Error: lambda_function.zip not found at expected location!"
+           echo "Terraform code expects this file - deployment will fail without it"
            exit 1
          fi
          echo "Lambda package verified at: ./iac/terraform/lambda_function.zip"
      ```
+     - **MANDATORY**: This verification MUST be included if dependencies are detected
   5. Configure AWS credentials via OIDC (mandatory)
   6. Configure Terraform Cloud (if applicable)
   7. Run CI jobs (validate, plan, security)
@@ -270,7 +374,11 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
     ```
     **Note**: For same-environment dependencies, prod workflow waits for dependency's prod workflow (e.g., "Python Prod"), not test workflow. This ensures Terraform Prod deploys only after Python Prod has successfully deployed in the same environment.
 - **Condition**: `if: ${{ github.event.workflow_run.conclusion == 'success' }}`
-- **Steps** (CRITICAL ORDER):
+- **MANDATORY Dependency Detection**:
+  - **If Terraform code references artifacts** (e.g., `filename = "lambda_function.zip"` in any `.tf` file), Terraform HAS dependencies
+  - **Dependency handling steps below are MANDATORY** - DO NOT SKIP even if orchestrator workflows are used
+- **Steps** (CRITICAL ORDER - ALL STEPS MANDATORY IF DEPENDENCIES DETECTED):
+
   1. **CRITICAL - Checkout code**: For workflow_run triggers, ALL jobs MUST checkout with ref parameter:
      ```yaml
      - uses: actions/checkout@v4
@@ -278,7 +386,11 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          ref: ${{ github.event.workflow_run.head_branch }}
      ```
      This is required because `workflow_run` triggers don't automatically checkout code.
-  2. **Download dependencies from upstream workflows FIRST** (if Terraform depends on other code types):
+  2. **Download dependencies from upstream workflows FIRST** (MANDATORY if Terraform depends on other code types):
+
+     - **CRITICAL**: This step is MANDATORY if Terraform code references artifacts (e.g., `filename = "lambda_function.zip"`)
+     - **DO NOT SKIP**: Even if orchestrator workflows are used, this step ensures artifacts are available
+
      ```yaml
      - name: Download Lambda package from upstream workflow
        uses: actions/download-artifact@v4
@@ -289,7 +401,7 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          run-id: ${{ github.event.workflow_run.id }}
          github-token: ${{ secrets.GITHUB_TOKEN }}
          path: ./lambda-package
-     
+
      - name: Verify artifact downloaded successfully
        if: steps.download-artifact.outcome != 'success'
        run: |
@@ -297,9 +409,14 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
          exit 1
      ```
+
      - **For single dependency**: Always use `actions/download-artifact@v4` with `run-id` (shown above)
      - **For multiple dependencies**: Download from S3/container registry where each upstream workflow uploads independently
-  3. **Place artifact in correct location** where Terraform code expects it:
+     - **MANDATORY**: This step MUST be included if dependencies are detected
+
+  3. **Place artifact in correct location** where Terraform code expects it (MANDATORY):
+     - **CRITICAL**: This step is MANDATORY if Terraform code references artifacts
+     - **Path Detection**: Analyze Terraform code to find exact path where artifact is expected
      ```yaml
      - name: Move Lambda package to Terraform directory
        run: |
@@ -307,16 +424,21 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
          cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
          echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
      ```
-  4. **Verify artifact exists** before Terraform operations:
+     - **MANDATORY**: This step MUST be included if dependencies are detected
+  4. **Verify artifact exists** before Terraform operations (MANDATORY):
+     - **CRITICAL**: This verification step is MANDATORY to ensure Terraform has required artifacts
      ```yaml
      - name: Verify Lambda package exists
        run: |
-         if [ ! -f "./iac/terraform/lambda_function.zip" ]; then
+         TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
+         if [ ! -f "$TERRAFORM_LAMBDA_PATH" ]; then
            echo "Error: lambda_function.zip not found at expected location!"
+           echo "Terraform code expects this file - deployment will fail without it"
            exit 1
          fi
          echo "Lambda package verified at: ./iac/terraform/lambda_function.zip"
      ```
+     - **MANDATORY**: This verification MUST be included if dependencies are detected
   5. Configure AWS credentials via OIDC (mandatory)
   6. Configure Terraform Cloud (if applicable)
   7. Run CI jobs (validate, plan, security)
@@ -345,8 +467,18 @@ Define CI/CD workflow patterns and standards for Terraform code in unified workf
 
 **When Terraform depends on other code types** (e.g., Python Lambda package):
 
-- **Workflow Triggers**: Add `workflow_run` triggers to wait for upstream workflows to complete
-- **Download Artifacts**: Use `actions/download-artifact@v4` with `run-id` and `github-token` to download from upstream workflows
-- **Artifact Passing**: Pass artifact paths/URLs to Terraform via environment variables or Terraform variables
+- **MANDATORY Detection**: Dependencies are detected from:
+  1. Requirements files (`.code-docs/requirements/` or `.requirements/`)
+  2. **Code Analysis** (MANDATORY): Scan Terraform `.tf` files for artifact references:
+     - `filename = "lambda_function.zip"` → Terraform depends on Python Lambda
+     - `source = "*.zip"` → Terraform depends on artifact-producing code type
+     - Any reference to `.zip`, Lambda packages, or other build artifacts → Dependency exists
+- **MANDATORY Implementation**: If dependencies are detected (from requirements OR code analysis):
+  - **Workflow Triggers**: Add `workflow_run` triggers to wait for upstream workflows to complete
+  - **Download Artifacts**: Use `actions/download-artifact@v4` with `run-id` and `github-token` to download from upstream workflows (MANDATORY step)
+  - **Place Artifacts**: Place artifacts in correct location where Terraform code expects them (MANDATORY step)
+  - **Verify Artifacts**: Verify artifacts exist before Terraform operations (MANDATORY step)
+  - **Artifact Passing**: Pass artifact paths/URLs to Terraform via environment variables or Terraform variables
+- **DO NOT SKIP**: Dependency handling steps are MANDATORY, not optional - they ensure Terraform has required artifacts
 - **Multiple Dependencies**: If Terraform depends on multiple code types, wait for all upstream workflows
 - **Artifact Sources**: Download from GitHub Actions artifacts, S3, or container registries based on where upstream workflows store artifacts

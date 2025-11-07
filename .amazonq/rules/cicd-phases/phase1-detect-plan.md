@@ -78,20 +78,53 @@ Scan repository comprehensively for ALL code types (Python, Terraform, JavaScrip
 
 5. **Analyze Code Dependencies:**
 
+   - **Load Artifact Mapping** (PREFERRED METHOD):
+
+     - **CRITICAL**: First check if `.code-docs/artifact-mappings.json` exists
+     - If mapping file exists:
+       - Read and parse the JSON file
+       - Use mapping data to identify dependencies automatically
+       - Extract dependency information from `mappings` array
+       - Use `lambda_functions` array to identify all Lambda functions
+       - Use `terraform_resources` array to identify all Terraform resources that need artifacts
+       - **Advantage**: Mapping file provides exact artifact names, paths, and relationships without code scanning
+     - If mapping file does not exist, fall back to code analysis (below)
+
    - **Build Dependency Map**:
 
-     - For each code type, identify what it depends on (from requirements analysis)
+     - For each code type, identify what it depends on (from requirements analysis AND code analysis)
+     - **CRITICAL - Code Analysis for Dependencies** (FALLBACK if mapping file not available):
+       - **Terraform Code Analysis**: Scan all `.tf` files for artifact references:
+         - Search for `filename = "lambda_function.zip"` or similar patterns
+         - Search for `source = "*.zip"` or `archive_path = "*.zip"`
+         - Search for `lambda_package_path` or similar variable references
+         - If Terraform references `.zip` files, Lambda packages, or other artifacts, mark as dependency
+         - Example: If `s3-lambda-trigger-main.tf` contains `filename = "lambda_function.zip"`, Terraform depends on Python Lambda
+       - **Docker Code Analysis**: Scan Dockerfiles for `COPY` or `ADD` commands referencing code artifacts
+       - **Kubernetes Code Analysis**: Scan manifests for image references that need to be built
+       - **General Pattern**: If code type A references artifacts that code type B produces, A depends on B
+     - **When Using Mapping File**: Extract dependency information directly from mapping:
+       - For each entry in `mappings` array:
+         - Terraform resource depends on Lambda function
+         - Artifact name is specified in `artifact_name` field
+         - Artifact destination path is specified in `artifact_destination_path` field
+         - Environment-specific artifact names are in `environment_artifacts` object
      - Document build order: e.g., "Python Lambda must be built before Terraform deployment"
      - Identify artifact requirements: what artifacts need to be produced and consumed
      - Example dependency chains:
-       - `terraform → depends on → python` (Terraform needs Lambda zip for deployment)
+       - `terraform → depends on → python` (Terraform needs Lambda zip for deployment - detected from mapping file or `filename = "lambda_function.zip"` in Terraform code)
        - `docker → depends on → python` (Docker image needs Python code built)
        - `kubernetes → depends on → docker` (K8s manifests need Docker image)
 
    - **Workflow Dependency Requirements**:
      - Determine which workflows must wait for others using `workflow_run` triggers
      - Identify which artifacts need to be uploaded/downloaded between workflows
+     - **When Using Mapping File**: Use exact artifact names from `environment_artifacts` object:
+       - Dev environment: Use `environment_artifacts.dev` value
+       - Test environment: Use `environment_artifacts.test` value
+       - Prod environment: Use `environment_artifacts.prd` value
      - Document artifact passing requirements (e.g., Lambda zip file path, Docker image tag)
+     - **MANDATORY**: If dependencies are detected (from mapping file OR requirements OR code analysis), they MUST be implemented in workflows
 
 6. **Draft Multi-Environment Workflow Plan:**
    For each detected code type, plan **three separate workflow files**, one per environment:

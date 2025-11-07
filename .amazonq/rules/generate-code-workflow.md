@@ -127,6 +127,7 @@ When the user requests to implement requirements or generate code, follow this s
 - Keep the process simple and focused
 - Ensure explicit approval at each phase transition
 - **MANDATORY** after every phase remind user to commit artifacts to git
+- **MANDATORY**: Generate artifact dependency mapping (`.code-docs/artifact-mappings.json`) during Phase 2 to enable CICD workflow generation
 
 ## CRITICAL: Progress Tracking System
 
@@ -200,16 +201,19 @@ Feature names are automatically generated based on the requirements content:
 .code-docs/
 ├── requirements/         # Selected requirements documents
 ├── code-state.md        # Master state tracking file
-└── audit.md             # Record approvals and decisions
+├── audit.md             # Record approvals and decisions
+└── artifact-mappings.json  # Artifact dependency mappings for CICD workflows
+```
 
 iac/
-└── {iac-tool}/          # IAC code by tool (terraform, cdk, cloudformation, pulumi, etc.)
+└── {iac-tool}/ # IAC code by tool (terraform, cdk, cloudformation, pulumi, etc.)
 
 src/
-└── {runtime-type}-{feature-name}/  # Application code by runtime/type (lambda-python, lambda-nodejs, container-{lang}, etc.)
+└── {runtime-type}-{feature-name}/ # Application code by runtime/type (lambda-python, lambda-nodejs, container-{lang}, etc.)
 
 tests/
-└── {feature-name}/      # Unit tests by feature
+└── {feature-name}/ # Unit tests by feature
+
 ```
 
 **Note**: Specific IAC tool and application runtime/language are determined in Phase 1 based on requirements analysis.
@@ -233,3 +237,4 @@ tests/
 - Tests: tests/{feature-name}/
 
 **Note**: IAC tool and application runtime/language are selected in Phase 1. Use kebab-case for feature names (e.g., "select-requirements", "generate-code", "review-refine").
+```

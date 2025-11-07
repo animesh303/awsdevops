@@ -83,7 +83,80 @@
      - Add changelog entries for modifications following language standards
    - Follow language-specific best practices and AWS service guidelines from `code-phases/{language}-standards.md`
 
-5. **Apply Security Standards**: Ensure security best practices:
+5. **Generate Artifact Dependency Mapping** (MANDATORY for CICD workflows):
+
+   - **CRITICAL**: After generating both IaC and application code, create a mapping JSON file that links artifacts to infrastructure resources
+   - **Purpose**: This mapping enables CICD workflows to automatically determine which artifacts to download and where to place them
+   - **Location**: Create `.code-docs/artifact-mappings.json` (or update existing file if it exists)
+   - **Mapping Structure**:
+     ```json
+     {
+       "version": "1.0",
+       "last_updated": "2025-01-28T12:00:00Z",
+       "lambda_functions": [
+         {
+           "function_name": "hello_world",
+           "source_directory": "src/lambda-python-s3-lambda-trigger",
+           "runtime": "python3.12",
+           "artifact_name": "lambda-package-dev",
+           "artifact_filename": "lambda_function.zip",
+           "jira_ticket": "AWS-5",
+           "feature_name": "s3-lambda-trigger"
+         }
+       ],
+       "terraform_resources": [
+         {
+           "resource_type": "aws_lambda_function",
+           "resource_name": "hello_world",
+           "terraform_file": "iac/terraform/s3-lambda-trigger-main.tf",
+           "artifact_reference": "lambda_function.zip",
+           "artifact_path_in_terraform": "iac/terraform/lambda_function.zip",
+           "depends_on_lambda": "hello_world",
+           "jira_ticket": "AWS-5",
+           "feature_name": "s3-lambda-trigger"
+         }
+       ],
+       "mappings": [
+         {
+           "terraform_resource": "aws_lambda_function.hello_world",
+           "lambda_function": "hello_world",
+           "artifact_name": "lambda-package-dev",
+           "artifact_source_path": "src/lambda-python-s3-lambda-trigger",
+           "artifact_destination_path": "iac/terraform/lambda_function.zip",
+           "environment_artifacts": {
+             "dev": "lambda-package-dev",
+             "test": "lambda-package-test",
+             "prd": "lambda-package-prd"
+           }
+         }
+       ]
+     }
+     ```
+   - **Mapping Generation Rules**:
+     - **Scan Terraform files**: For each `.tf` file, identify `aws_lambda_function` resources
+     - **Extract artifact references**: Find `filename = "*.zip"` or `source = "*.zip"` patterns
+     - **Match Lambda functions**: For each Lambda function resource, identify corresponding source directory in `src/`
+     - **Determine artifact names**: Use pattern `{feature-name}-package-{env}` (e.g., `s3-lambda-trigger-package-dev`)
+     - **Map paths**: Determine where Terraform expects the artifact (from `filename` or `source` attribute)
+     - **Environment mapping**: Create environment-specific artifact names (dev, test, prd)
+     - **JIRA ticket tracking**: Include JIRA ticket number from requirements for traceability
+   - **Multiple Lambda Functions**: If multiple Lambda functions exist:
+     - Each function gets its own entry in `lambda_functions` array
+     - Each Terraform resource that references a Lambda gets its own entry in `terraform_resources` array
+     - Each mapping links one Terraform resource to one Lambda function
+     - Use unique artifact names per function (e.g., `{feature-name}-{function-name}-package-dev`)
+   - **Update Existing Mapping**: If `.code-docs/artifact-mappings.json` already exists:
+     - Read existing file
+     - Merge new mappings with existing ones
+     - Remove duplicates based on `terraform_resource` and `lambda_function` combination
+     - Update `last_updated` timestamp
+   - **Validation**: After generating mapping:
+     - Verify all Terraform Lambda resources have corresponding Lambda function entries
+     - Verify all artifact paths are valid and relative to repository root
+     - Verify artifact names follow naming conventions
+   - **Documentation**: Add comment in mapping file explaining structure and usage
+
+6. **Apply Security Standards**: Ensure security best practices:
 
    - Enable encryption at rest and in transit for all resources
    - Implement proper logging and monitoring
@@ -91,7 +164,7 @@
    - Follow OWASP guidelines for application code
    - Use least privilege access policies
 
-6. **Manage Version Control**: Ensure proper `.gitignore` configuration:
+7. **Manage Version Control**: Ensure proper `.gitignore` configuration:
 
    - Check if `.gitignore` exists at project root
    - Create or update with appropriate ignores based on selected tools:
@@ -110,7 +183,12 @@
      - **IDE-specific**: `.vscode/`, `.idea/`, `*.swp`
      - **Environment files**: `.env`, `*.env`, `*.tfvars`, `*.pulumi.yaml`
 
-7. **Perform Quality Validation**: Final quality checks:
+8. **Update Artifact Mapping After Validation**: After quality validation, update mapping if needed:
+
+   - If any code changes were made during validation/iteration, update artifact mapping accordingly
+   - Ensure mapping reflects final code structure
+
+9. **Perform Quality Validation**: Final quality checks:
 
    - Verify code follows AWS best practices (IaC validation completed in Step 3 based on selected tool)
    - Check for security vulnerabilities in dependencies and code:
@@ -124,8 +202,8 @@
      - Run tool-specific linters (e.g., `flake8`, `eslint`, `golangci-lint`)
    - Store quality reports in `.code-docs/quality-reports/`
 
-8. **Log and Seek Approval**:
-   - Log code generation with timestamp in `.code-docs/audit.md`
-   - Wait for explicit user approval before proceeding
-   - Record approval response with timestamp
-   - Update Phase 2 complete status in `.code-docs/code-state.md`
+10. **Log and Seek Approval**:
+    - Log code generation with timestamp in `.code-docs/audit.md`
+    - Wait for explicit user approval before proceeding
+    - Record approval response with timestamp
+    - Update Phase 2 complete status in `.code-docs/code-state.md`

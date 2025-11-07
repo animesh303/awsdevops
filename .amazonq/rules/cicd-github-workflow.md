@@ -46,9 +46,9 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
 
 ### Context Loading by Phase:
 
-- **Phase 1**: Load existing codebase structure, detect languages/environments, check for existing workflows, **load requirements files** (`.code-docs/requirements/*.md` or `.requirements/` directory)
-- **Phase 2**: Load Phase 1 detection results + workflow plan + existing workflow files (if any) + **requirements files with dependency analysis**
-- **Phase 3**: Load all detection results + generated workflow files + plan documents + existing workflows + **requirements and dependency mappings**
+- **Phase 1**: Load existing codebase structure, detect languages/environments, check for existing workflows, **load requirements files** (`.code-docs/requirements/*.md` or `.requirements/` directory), **load artifact mapping file** (`.code-docs/artifact-mappings.json` if exists)
+- **Phase 2**: Load Phase 1 detection results + workflow plan + existing workflow files (if any) + **requirements files with dependency analysis** + **artifact mapping file** (`.code-docs/artifact-mappings.json` if exists)
+- **Phase 3**: Load all detection results + generated workflow files + plan documents + existing workflows + **requirements and dependency mappings** + **artifact mapping file**
 - **Phase 4**: Load all previous artifacts + review feedback + approval records
 
 ### Mandatory Loading Rules:
@@ -57,8 +57,9 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
 2. **Load incrementally** - each phase needs context from all previous phases
 3. **Workflow files are special** - must read existing workflow files in `.github/workflows/` in addition to all artifacts
 4. **Requirements files are CRITICAL** - must load requirements files to understand dependencies between code artifacts
-5. **Provide context summary** - briefly tell user what artifacts were loaded
-6. **Never assume** - always load the actual files, don't rely on memory
+5. **Artifact mapping file is PREFERRED** - must load `.code-docs/artifact-mappings.json` if it exists (generated during code generation Phase 2) to get exact artifact names and paths
+6. **Provide context summary** - briefly tell user what artifacts were loaded
+7. **Never assume** - always load the actual files, don't rely on memory
 
 ## MANDATORY: Requirements and Dependency Analysis
 

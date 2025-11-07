@@ -261,17 +261,40 @@ If you need to conditionally run an entire job based on file existence, either:
 
    - **Deploy to Dev Job**:
      - **Needs**: All CI jobs must succeed
-     - **Dependency Handling** (CRITICAL - must be done BEFORE deployment operations):
-       - If this code type depends on others, add `workflow_run` trigger to wait for upstream workflows
-       - **Download artifacts from upstream workflows FIRST** (e.g., Lambda zip from Python workflow)
-       - **Place artifacts in correct location** where deployment code expects them (e.g., if Terraform references `lambda_function.zip`, place it in the Terraform directory)
-       - **Verify artifacts exist** before proceeding with deployment operations
-       - Pass artifact information (paths, URLs, tags) to deployment steps
+     - **Dependency Handling** (CRITICAL - MANDATORY if dependencies detected):
+       - **MANDATORY CHECK**: If Phase 1 detected dependencies for this code type (from mapping file OR requirements OR code analysis), dependency handling steps MUST be included
+       - **Load Artifact Mapping** (PREFERRED):
+         - **CRITICAL**: Read `.code-docs/artifact-mappings.json` if it exists
+         - Extract dependency information from `mappings` array
+         - For each mapping entry:
+           - Use `artifact_name` from `environment_artifacts.dev` for artifact download
+           - Use `artifact_destination_path` for artifact placement
+           - Use `terraform_resource` to identify which Terraform resource needs the artifact
+           - Use `lambda_function` to identify which Lambda function produces the artifact
+       - **For Terraform workflows**: If Terraform code references artifacts (e.g., `filename = "lambda_function.zip"`) OR mapping file indicates dependencies, dependency handling is MANDATORY
+       - **Steps MUST include** (in this exact order):
+         1. **Download artifacts from upstream workflows FIRST** (e.g., Lambda zip from Python workflow)
+            - **If mapping file exists**: Use exact artifact name from `environment_artifacts.dev` (e.g., `lambda-package-dev`)
+            - **If mapping file does not exist**: Use patterns from `terraform-standards.md` or `workflow-dependency-handling.md`
+            - For Terraform: Follow exact patterns from `terraform-standards.md` section "Deploy to Dev" steps 2-4
+         2. **Place artifacts in correct location** where deployment code expects them
+            - **If mapping file exists**: Use exact path from `artifact_destination_path` field
+            - **If mapping file does not exist**: For Terraform, if code references `lambda_function.zip`, place it where Terraform expects it (e.g., `iac/terraform/lambda_function.zip`)
+            - Follow patterns from `terraform-standards.md` for exact paths
+         3. **Verify artifacts exist** before proceeding with deployment operations
+            - **If mapping file exists**: Verify artifact exists at `artifact_destination_path`
+            - Use verification steps from `terraform-standards.md`
+         4. **Pass artifact information** to deployment steps (environment variables, Terraform variables, etc.)
+       - **Multiple Dependencies**: If mapping file indicates multiple Lambda functions:
+         - Download each artifact using its specific `environment_artifacts.dev` name
+         - Place each artifact at its specific `artifact_destination_path`
+         - Verify all artifacts exist before proceeding
+       - **DO NOT SKIP**: If dependencies are detected, these steps are MANDATORY, not optional
      - Deploys to Development environment
      - Uses GitHub `environment: dev` for secrets and protection rules
      - Downloads CI artifacts if needed for deployment
      - **Upload deployment artifacts** for downstream workflows (if this code type is a dependency)
-     - Follow patterns from `{code-type}-standards.md`
+     - Follow patterns from `{code-type}-standards.md` - **CRITICAL**: For Terraform, use complete dependency handling patterns from `terraform-standards.md`
 
    **Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
 
@@ -294,11 +317,11 @@ If you need to conditionally run an entire job based on file existence, either:
      - **CRITICAL - Checkout Step**:
        - **For push triggers**: Standard checkout is sufficient: `- uses: actions/checkout@v4`
        - **For workflow_run triggers**: ALL jobs (CI and deployment) MUST include checkout with ref parameter:
-         ```yaml
-         - uses: actions/checkout@v4
+       ```yaml
+       - uses: actions/checkout@v4
            with:
              ref: ${{ github.event.workflow_run.head_branch }}
-         ```
+       ```
        - **Rule**: If workflow has `workflow_run` trigger, ALL jobs must use checkout with ref parameter, regardless of whether push trigger also exists
 
    - **Deploy to Test Job**:
@@ -319,14 +342,14 @@ If you need to conditionally run an entire job based on file existence, either:
 
    - **Workflow Trigger**:
      - **Always use orchestrators**: Trigger via `workflow_run` after successful test workflow AND support `workflow_dispatch` for orchestrator invocation
-       ```yaml
-       on:
-         workflow_run:
-           workflows: ["{Code Type} Test"]
-           types: [completed]
-           branches: [main]
+     ```yaml
+     on:
+       workflow_run:
+         workflows: ["{Code Type} Test"]
+         types: [completed]
+         branches: [main]
          workflow_dispatch: # Allow orchestrator to trigger
-       ```
+     ```
    - **Condition Check**:
      ```yaml
      jobs:
@@ -585,6 +608,16 @@ If you need to conditionally run an entire job based on file existence, either:
    - For each detected code type, read and apply the complete content from `{code-type}-standards.md`
    - Use the exact job names, steps, and patterns specified in the standards file
    - Do not modify or summarize the standards - use them as written
+   - **CRITICAL - For Terraform Workflows**:
+     - **MANDATORY Dependency Check**: Before generating deployment job, check if Terraform has dependencies:
+       - Review Phase 1 dependency map
+       - Scan Terraform `.tf` files for artifact references (e.g., `filename = "lambda_function.zip"`)
+       - If dependencies exist, deployment job MUST include dependency handling steps from `terraform-standards.md`
+     - **MANDATORY Steps**: If dependencies detected, deployment job MUST include (in order):
+       1. Download artifacts step (from `terraform-standards.md` step 2)
+       2. Place artifacts step (from `terraform-standards.md` step 3)
+       3. Verify artifacts step (from `terraform-standards.md` step 4)
+     - **DO NOT SKIP**: These steps are mandatory, not optional - they ensure Terraform has required artifacts
    - If a standards file is missing, create it with appropriate CI/CD patterns for that code type
 
 8. **Document Dependency Handling:**
@@ -596,7 +629,7 @@ If you need to conditionally run an entire job based on file existence, either:
      - Document how artifacts are passed (GitHub Actions artifacts, S3, etc.)
    - Example: "Terraform-dev workflow waits for Python-dev workflow to complete and download lambda-package-dev artifact"
 
-9. **Validate Workflow Linting (MANDATORY):**
+9. **Validate Workflow Linting and Dependency Handling (MANDATORY):**
 
    - **CRITICAL**: Before presenting preview, validate all generated workflow files for linting errors:
      - Check YAML syntax validity
@@ -606,8 +639,19 @@ If you need to conditionally run an entire job based on file existence, either:
      - Verify workflow trigger syntax is correct
      - Check environment names are valid
      - Verify artifact paths and names are correct
+   - **CRITICAL - Dependency Handling Validation** (MANDATORY for Terraform workflows):
+     - **For each Terraform workflow generated**:
+       - Check if Terraform code references artifacts (scan `.tf` files for `filename = "*.zip"`, `source = "*.zip"`, etc.)
+       - Check Phase 1 dependency map for Terraform dependencies
+       - **If dependencies detected**: Verify deployment job includes ALL mandatory dependency handling steps:
+         1. Download artifacts step (from `terraform-standards.md`)
+         2. Place artifacts step (from `terraform-standards.md`)
+         3. Verify artifacts step (from `terraform-standards.md`)
+       - **If dependencies detected but steps missing**: Add missing steps immediately - DO NOT proceed without them
+       - **Validation Rule**: If Terraform code has `filename = "lambda_function.zip"` or similar, dependency handling steps MUST be present
    - **If linting errors are found**: Fix them immediately before proceeding
-   - **DO NOT proceed to preview if workflows have linting errors**
+   - **If dependency handling steps are missing**: Add them immediately before proceeding
+   - **DO NOT proceed to preview if workflows have linting errors OR missing dependency handling steps**
 
 10. **Present Workflow YAML Preview:**
 
@@ -615,19 +659,20 @@ If you need to conditionally run an entire job based on file existence, either:
       - **If orchestrators were generated**:
         - `orchestrator-dev.yml`, `orchestrator-test.yml`, `orchestrator-prd.yml`
         - Show execution order and how orchestrators manage dependencies
-      - `{code-type}-dev.yml` for each detected code type
-      - `{code-type}-test.yml` for each detected code type
-      - `{code-type}-prd.yml` for each detected code type
-    - Include key jobs (CI jobs + deployment job), triggers, environments, permissions, and artifact passing
-    - **Highlight dependency handling**:
-      - Show how orchestrator manages execution order and artifact passing
-      - Show artifact download/upload steps
-      - Show how artifacts are passed to deployment steps
-    - List any workflows that were modified or removed
-    - Highlight the environment-specific structure (3 files per code type, plus orchestrators)
-    - **Show dependency graph**: Visual representation of which workflows depend on others
-    - **Show execution order**: Show the execution order determined by topological sort
-    - **Confirm linting validation**: State that all workflows have been validated and are free of linting errors
+    - `{code-type}-dev.yml` for each detected code type
+    - `{code-type}-test.yml` for each detected code type
+    - `{code-type}-prd.yml` for each detected code type
+
+- Include key jobs (CI jobs + deployment job), triggers, environments, permissions, and artifact passing
+- **Highlight dependency handling**:
+- Show how orchestrator manages execution order and artifact passing
+  - Show artifact download/upload steps
+  - Show how artifacts are passed to deployment steps
+- List any workflows that were modified or removed
+- Highlight the environment-specific structure (3 files per code type, plus orchestrators)
+  - **Show dependency graph**: Visual representation of which workflows depend on others
+- **Show execution order**: Show the execution order determined by topological sort
+  - **Confirm linting validation**: State that all workflows have been validated and are free of linting errors
 
 11. **Checkpoint:**
     - Prompt user to confirm: "Proceed to generate/update environment-specific CI/CD workflows (dev/test/prd) with dependency handling and protections for all detected code types?"
