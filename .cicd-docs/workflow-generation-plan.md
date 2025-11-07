@@ -2,106 +2,77 @@
 
 ## Generated Workflow Files
 
-### Python Workflows (3 files)
-- [x] `python-dev.yml` - CI + Deploy to Dev (trigger: push to `develop`)
-- [x] `python-test.yml` - CI + Deploy to Test (trigger: push to `main`)  
-- [x] `python-prd.yml` - CI + Deploy to Prod (trigger: workflow_run after python-test success)
+### Orchestrator Workflows (Always Generated)
+- [x] `orchestrator-dev.yml` - Manages Python → Terraform execution for dev
+- [x] `orchestrator-test.yml` - Manages Python → Terraform execution for test  
+- [x] `orchestrator-prd.yml` - Manages Python → Terraform execution for prod
 
-### Terraform Workflows (3 files)
-- [x] `terraform-dev.yml` - CI + Deploy to Dev (trigger: workflow_run after python-dev + push to `develop`)
-- [x] `terraform-test.yml` - CI + Deploy to Test (trigger: workflow_run after python-test + push to `main`)
-- [x] `terraform-prd.yml` - CI + Deploy to Prod (trigger: workflow_run after terraform-test success)
+### Python Workflows (3 environments)
+- [x] `python-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch)
+- [x] `python-test.yml` - CI + Deploy to Test (triggers on `main` branch)
+- [x] `python-prd.yml` - CI + Deploy to Prod (triggers after successful test)
 
-### Orchestrator Workflows (3 files)
-- [x] `orchestrator-dev.yml` - Orchestrate dev deployment (trigger: push to `develop`)
-- [x] `orchestrator-test.yml` - Orchestrate test deployment (trigger: push to `main`)
-- [x] `orchestrator-prd.yml` - Orchestrate prod deployment (trigger: workflow_run after orchestrator-test)
+### Terraform Workflows (3 environments)
+- [x] `terraform-dev.yml` - CI + Deploy to Dev (waits for Python dev)
+- [x] `terraform-test.yml` - CI + Deploy to Test (waits for Python test)
+- [x] `terraform-prd.yml` - CI + Deploy to Prod (waits for Python prod)
 
-## Workflow Features Implemented
+## Dependency Handling Implementation
 
 ### Python Workflows
-- [x] CI Jobs: lint (Flake8), security (Bandit), tests (pytest)
-- [x] Matrix strategy: Python 3.10, 3.11, 3.12
-- [x] Continue on error: CI jobs don't block deployment
-- [x] Lambda package build and upload
-- [x] Environment-specific artifact naming
-- [x] AWS OIDC configuration ready
-- [x] Caching for pip dependencies
+- [x] Build Lambda deployment packages
+- [x] Upload artifacts with environment-specific names (`lambda-package-dev/test/prd`)
+- [x] Use `actions/upload-artifact@v4` with 1-day retention
 
 ### Terraform Workflows  
-- [x] CI Jobs: validate, plan, security (Checkov)
-- [x] MANDATORY dependency handling for Lambda artifacts
-- [x] Artifact download, placement, and verification
-- [x] Terraform Cloud backend detection
-- [x] AWS OIDC configuration
-- [x] Environment-specific deployment
-- [x] Proper checkout for workflow_run triggers
+- [x] **MANDATORY dependency handling steps implemented**:
+  1. [x] Download Lambda package from upstream Python workflow
+  2. [x] Place artifact at `iac/terraform/lambda_function.zip` (where Terraform expects)
+  3. [x] Verify artifact exists before Terraform operations
+  4. [x] Pass artifact path to Terraform via environment variables
 
-### Orchestrator Workflows
-- [x] Sequential job execution (Python → Terraform)
-- [x] Workflow dispatch triggering
-- [x] Artifact passing between workflows
-- [x] Wait for completion using lewagon/wait-on-check-action
-- [x] Deployment summary generation
-- [x] Error handling with if: always()
-
-## Dependency Implementation
-
-### Artifact Flow
-- [x] **Python uploads**: `lambda-package-{env}` artifacts (dev/test/prd)
-- [x] **Terraform downloads**: Artifacts from upstream Python workflows
-- [x] **Placement**: Artifacts placed at `iac/terraform/lambda_function.zip`
-- [x] **Verification**: Mandatory verification before Terraform operations
-
-### Workflow Dependencies
-- [x] **Dev**: Python-dev → Terraform-dev (via orchestrator-dev)
-- [x] **Test**: Python-test → Terraform-test (via orchestrator-test)  
-- [x] **Prod**: Python-prd → Terraform-prd (via orchestrator-prd)
-
-## Multi-Environment Strategy
-
-### Development Environment
-- [x] **Trigger**: Push to `develop` branch
-- [x] **Orchestrator**: `orchestrator-dev.yml` manages execution
-- [x] **Artifacts**: `lambda-package-dev`
-- [x] **Protection**: Basic environment settings
-
-### Test Environment  
-- [x] **Trigger**: Push to `main` branch
-- [x] **Orchestrator**: `orchestrator-test.yml` manages execution
-- [x] **Artifacts**: `lambda-package-test`
-- [x] **Protection**: Test environment settings
-
-### Production Environment
-- [x] **Trigger**: Successful test deployment completion
-- [x] **Orchestrator**: `orchestrator-prd.yml` manages execution (workflow_run)
-- [x] **Artifacts**: `lambda-package-prd`
-- [x] **Protection**: Production environment protection rules
-
-## Workflow Validation
+## Workflow Structure Validation
 
 ### YAML Syntax
-- [x] All workflows have valid YAML syntax
-- [x] GitHub Actions expressions use `${{ }}` syntax
-- [x] Required fields present (name, on, jobs, runs-on)
+- [x] All workflows use valid YAML syntax
+- [x] Proper indentation (2 spaces)
+- [x] No syntax errors
 
-### Workflow Structure
-- [x] Proper job dependencies with `needs:`
-- [x] Correct trigger configurations
-- [x] Environment assignments
-- [x] Permissions configured
+### GitHub Actions Syntax
+- [x] All expressions use `${{ }}` syntax
+- [x] `hashFiles()` used only in step-level conditions
+- [x] Proper workflow trigger syntax
 
-### Dependency Handling
-- [x] Mandatory artifact download steps for Terraform
-- [x] Artifact placement and verification
-- [x] Error handling for failed downloads
-- [x] Proper checkout for workflow_run triggers
+### Required Fields
+- [x] All workflows have `name`, `on`, `jobs`, `runs-on`
+- [x] Environment names are correct: `dev`, `test`, `prod`
+- [x] Permissions configured: `contents: read`, `id-token: write`
 
-## Summary
+### Dependency Handling Validation
+- [x] **Terraform dependency detection**: `filename = "lambda_function.zip"` found in Terraform code
+- [x] **MANDATORY steps implemented**: Download → Place → Verify → Pass to Terraform
+- [x] **Artifact naming**: Environment-specific (`lambda-package-dev/test/prd`)
+- [x] **Error handling**: Verification steps with proper error messages
 
-- **Total Workflows**: 9 (3 Python + 3 Terraform + 3 Orchestrators)
-- **Environments**: 3 (dev, test, prod)
-- **Dependencies**: 1 (Terraform depends on Python)
-- **Artifact Strategy**: GitHub Actions artifacts with environment-specific naming
-- **Orchestration**: Always-on orchestrator pattern for consistency
-- **Validation**: All workflows validated and linting-error free
+## Workflow Triggers
+
+### Dev Environment
+- [x] Orchestrator: Push to `develop` branch
+- [x] Python: Push to `develop` + `workflow_call`
+- [x] Terraform: `workflow_run` from Python + Push fallback + `workflow_call`
+
+### Test Environment  
+- [x] Orchestrator: Push to `main` branch
+- [x] Python: Push to `main` + `workflow_call`
+- [x] Terraform: `workflow_run` from Python + Push fallback + `workflow_call`
+
+### Prod Environment
+- [x] Orchestrator: `workflow_run` after successful test orchestrator
+- [x] Python: `workflow_run` after successful Python test + `workflow_call`
+- [x] Terraform: `workflow_run` after successful Terraform test + `workflow_call`
+
+## Linting Validation Results
+
+- [x] **All workflows validated and free of linting errors**
+- [x] **Dependency handling steps are MANDATORY and implemented**
+- [x] **Ready for Phase 3 review**

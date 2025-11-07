@@ -1,13 +1,13 @@
 name: Terraform Test
 
 on:
+  workflow_call:
   workflow_run:
     workflows: ["Python Test"]
     types: [completed]
     branches: [main]
   push:
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,17 +19,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      - name: Cache Terraform plugins
-        uses: actions/cache@v3
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ vars.AWS_REGION }}
       - name: Configure Terraform Cloud
         env:
           TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
@@ -53,21 +51,15 @@ jobs:
           terraform fmt
 
   tf-plan:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
     needs: [tf-validate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ~1.1
-      - name: Cache Terraform plugins
-        uses: actions/cache@v3
-        with:
-          path: ~/.terraform.d/plugin-cache
-          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -89,8 +81,7 @@ jobs:
       - name: Detect Terraform Cloud backend
         id: detect-tfc
         run: |
-          cd iac/terraform
-          if grep -q "cloud" backend.tf 2>/dev/null || [ -n "$TFC_TOKEN" ]; then
+          if grep -q "cloud" iac/terraform/backend.tf 2>/dev/null || [ -n "$TFC_TOKEN" ]; then
             echo "USE_TFC=true" >> $GITHUB_ENV
             echo "Terraform Cloud backend detected"
           else
@@ -103,28 +94,23 @@ jobs:
           terraform plan
 
   tf-security:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
       - name: Run Checkov
         run: |
           pip install checkov
-          cd iac/terraform
           checkov -d . || true
 
   deploy-test:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
     needs: [tf-validate, tf-plan, tf-security]
     runs-on: ubuntu-latest
     environment: test
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
-      
-      # MANDATORY DEPENDENCY HANDLING - Download Lambda package from Python workflow
       - name: Download Lambda package from upstream workflow
         uses: actions/download-artifact@v4
         continue-on-error: true
@@ -134,22 +120,17 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: ./lambda-package
-
       - name: Verify artifact downloaded successfully
         if: steps.download-artifact.outcome != 'success'
         run: |
           echo "Error: Failed to download artifact 'lambda-package-test' from upstream workflow"
           echo "Upstream workflow run ID: ${{ github.event.workflow_run.id }}"
           exit 1
-
-      # MANDATORY - Place artifact where Terraform expects it
       - name: Move Lambda package to Terraform directory
         run: |
           mkdir -p ./iac/terraform
           cp ./lambda-package/lambda-package.zip ./iac/terraform/lambda_function.zip
           echo "TF_VAR_lambda_package_path=$(pwd)/iac/terraform/lambda_function.zip" >> $GITHUB_ENV
-
-      # MANDATORY - Verify artifact exists before Terraform operations
       - name: Verify Lambda package exists
         run: |
           TERRAFORM_LAMBDA_PATH="./iac/terraform/lambda_function.zip"
@@ -159,7 +140,6 @@ jobs:
             exit 1
           fi
           echo "Lambda package verified at: ./iac/terraform/lambda_function.zip"
-
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
