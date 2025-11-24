@@ -12,7 +12,7 @@ Always follow this workflow when user mentions working with JIRA tasks, tickets,
 
 ## MANDATORY: Session Continuity
 
-**CRITICAL**: When detecting an existing JIRA task management project, you MUST read and follow the session continuity instructions from `jira-phases/session-continuity.md` before proceeding with any phase.
+**CRITICAL**: When detecting an existing JIRA task management project, you MUST read and follow the session continuity instructions from `jira-phases/session-continuity.mdc` before proceeding with any phase.
 
 ## MANDATORY: Smart Context Loading for Resume
 
@@ -61,7 +61,7 @@ When the user requests to work with JIRA tasks, follow this structured 3-phase a
 **Workflow Execution Model**:
 
 - The workflow file (`jira-task-workflow.md`) defines the overall phase structure and orchestration
-- Each phase file (`phase1-*.md`, `phase2-*.md`, `phase3-*.md`) contains detailed execution steps
+- Each phase file (`phase1-*.mdc`, `phase2-*.mdc`, `phase3-*.mdc`) contains detailed execution steps
 - Workflow steps (numbered 1, 2, 3...) coordinate the phases
 - Phase file steps (numbered 1, 2, 3...) are executed within each workflow phase
 - Phase files handle their own approvals, logging, and internal logic
@@ -74,24 +74,24 @@ When the user requests to work with JIRA tasks, follow this structured 3-phase a
 
 ## Phase 1: Fetch & Select JIRA Tickets
 
-1. Load all steps from `jira-phases/phase1-fetch-select-tickets.md`
-2. Execute the steps loaded from `jira-phases/phase1-fetch-select-tickets.md`
+1. Load all steps from `jira-phases/phase1-fetch-select-tickets.mdc`
+2. Execute the steps loaded from `jira-phases/phase1-fetch-select-tickets.mdc`
    - **Note**: Phase file handles approval and logging internally at step 5
 3. **Update State (Graceful)**: Update Phase 1 status in `jira-state.md` after phase completion. If state file update fails, continue - artifacts are source of truth.
 4. **Git Reminder**: Remind user to commit Phase 1 artifacts to git
 
 ## Phase 2: Generate Requirements Spec
 
-1. Load all steps from `jira-phases/phase2-generate-requirements.md`
-2. Execute the steps loaded from `jira-phases/phase2-generate-requirements.md`
+1. Load all steps from `jira-phases/phase2-generate-requirements.mdc`
+2. Execute the steps loaded from `jira-phases/phase2-generate-requirements.mdc`
    - **Note**: Phase file handles approval, question resolution, and logging internally at step 8
 3. **Update State (Graceful)**: Update Phase 2 status in `jira-state.md` after phase completion. If state file update fails, continue - artifacts are source of truth.
 4. **Git Reminder**: Remind user to commit Phase 2 artifacts to git
 
 ## Phase 3: Final Confirmation & JIRA Update
 
-1. Load all steps from `jira-phases/phase3-review-iterate.md`
-2. Execute the steps loaded from `jira-phases/phase3-review-iterate.md`
+1. Load all steps from `jira-phases/phase3-review-iterate.mdc`
+2. Execute the steps loaded from `jira-phases/phase3-review-iterate.mdc`
 3. **Final Confirmation**: Phase 3 will seek final confirmation from user and update JIRA ticket
 4. **Git Reminder**: Remind user to commit Phase 3 artifacts to git
 

@@ -2,14 +2,7 @@
 
 ## Purpose
 
-Provide the user with final review of the generated/updated CI/CD workflow files for all detected code types, including multi-environment deployment pipelines, before confirming they are ready for commit and push (which happens in Phase 4).
-
-## Related Files
-
-- See `phase2-generate-workflow.md` for workflow generation steps
-- See `validation-checklist.md` for comprehensive validation criteria
-- See `workflow-common-issues.md` for troubleshooting
-- See `error-handling.md` for error scenarios
+Provide the user with final review of the generated/updated single production CI/CD workflow file for all detected code types, triggered by main branch changes, before confirming it is ready for commit and push (which happens in Phase 4).
 
 ## Steps
 
@@ -17,19 +10,18 @@ Provide the user with final review of the generated/updated CI/CD workflow files
 
    - Display comprehensive summary table:
 
-     - Code type
-     - Environment-specific workflow file names (`{code-type}-dev.yml`, `{code-type}-test.yml`, `{code-type}-prd.yml`)
-     - CI jobs in each workflow (lint, test, security scan)
-     - Deployment job per workflow
-     - Environments (dev, test, prod)
-     - Main jobs/steps in each generated YAML
+     - Code types detected
+     - Production workflow file name (`ci-cd.yml`)
+     - Trigger: main branch push
+     - Environment: production (single environment)
+     - Jobs for each code type (lint, security, test, build, deploy)
+     - Job dependencies and execution order
+     - Main jobs/steps in the unified workflow
      - Workflow modifications (created/modified/removed)
 
-   - Show actual YAML content for each environment-specific workflow file:
+   - Show actual YAML content for the unified workflow file:
 
-     - `{code-type}-dev.yml` - Dev workflow (CI + Deploy to Dev)
-     - `{code-type}-test.yml` - Test workflow (CI + Deploy to Test)
-     - `{code-type}-prd.yml` - Prod workflow (CI + Deploy to Prod)
+     - `ci-cd.yml` - Unified workflow containing all code types
 
    - Present generated artifacts for review when available:
 
@@ -45,58 +37,71 @@ Provide the user with final review of the generated/updated CI/CD workflow files
 
    - Provide quick highlights:
 
-     - Environment-specific workflow structure (3 separate files per code type: dev/test/prd)
-     - Branch-based deployment triggers (develop → dev, main → test/prod)
+     - Single production workflow structure (1 file containing all code types)
+     - Trigger: main branch push only
+     - Jobs sequenced by dependencies
+     - Single production environment
      - Environment protection rules and approvals
 
-   - Use clickable file links (preferably `@filename` syntax for Cursor, or relative/absolute paths) when presenting workflow file paths for review
+   - Use clickable file links (preferably `@filename` syntax for AmazonQ, or relative/absolute paths) when presenting workflow file paths for review
 
 2. **Review Dependency Handling:**
 
    - Verify dependency relationships from requirements analysis are correctly implemented:
-     - Upstream workflows (dependencies) build and upload artifacts
-     - Downstream workflows (dependents) wait for upstream workflows via `workflow_run` triggers
-     - Artifact download steps are correctly configured in downstream workflows
+     - Upstream jobs (dependencies) build and upload artifacts
+     - Downstream jobs (dependents) wait for upstream jobs via `needs:` dependencies
+     - Artifact download steps are correctly configured in downstream deploy jobs
      - Artifact paths/URLs are correctly passed to deployment steps
    - Review dependency map: `{code-type} → depends on → {other-code-type}`
-   - Verify artifact passing mechanisms (GitHub Actions artifacts, S3, container registry, etc.)
+   - Verify artifact passing mechanisms (GitHub Actions artifacts)
    - Confirm dependency order is correct (e.g., Python Lambda must be built before Terraform deployment)
 
-3. **Review Multi-Environment Deployment Flow:**
+3. **Review Deployment Flow:**
 
-   - Verify environment-specific workflow structure for each code type:
-     - Dev workflow (`{code-type}-dev.yml`) triggers on pushes to `develop` branch (or waits for upstream dependencies)
-     - Test workflow (`{code-type}-test.yml`) triggers on pushes to `main` branch (or waits for upstream dependencies via workflow_run)
-     - Prod workflow (`{code-type}-prd.yml`) triggers via `workflow_run` after successful test workflow on `main` branch (or waits for upstream dependencies)
-   - Confirm `workflow_run` triggers with `branches: [main]` filter are correctly configured for test and prod workflows
-   - Verify `workflow_run` condition checks (`if: github.event.workflow_run.conclusion == 'success'`) are in place
-   - Verify code checkout from triggering workflow branch (`ref: ${{ github.event.workflow_run.head_branch }}`)
-   - Verify environment protection rules are in place
-   - **Verify dependency-based triggers**: If workflows have dependencies, ensure they wait for upstream workflows appropriately
+   - Verify single production workflow structure:
+     - Workflow (`ci-cd.yml`) triggers on pushes to `main` branch only
+     - All deploy jobs use `environment: production`
+     - Jobs are sequenced correctly based on dependencies using `needs:`
+     - Code types with no dependencies run first
+     - Dependent code types wait for upstream deploy jobs to complete
+   - Verify job dependencies are correctly configured using `needs:` array
+   - Verify production environment protection rules are in place
+   - **Verify dependency-based job sequencing**: If code types have dependencies, ensure deploy jobs wait for upstream deploy jobs via `needs:`
 
 4. **Review Workflow Generation Context:**
 
    - **If this was a regeneration**:
-     - Indicate that `.github/workflows/` directory was deleted and all workflows were regenerated fresh
-     - All workflows are newly generated (no modifications to existing workflows)
+     - Indicate that `.github/workflows/` directory was deleted and the single production workflow was regenerated fresh
+     - The workflow is newly generated (no modifications to existing workflows)
    - **If this was a new generation**:
-     - Indicate that new workflows were generated
-     - Any existing workflows with matching names were replaced
-   - Confirm all generated workflows align with current codebase and detected code types
+     - Indicate that a new single production workflow was generated
+     - Any existing workflow with matching name was replaced
+   - Confirm the generated workflow aligns with current codebase and detected code types
+   - Confirm workflow triggers on main branch and deploys to production environment
 
 5. **Validate Workflow Linting:**
 
    - **CRITICAL**: Verify all generated workflow files have no linting errors
+   - **MANDATORY - BLOCKING CHECK: hashFiles() at Job Level**:
+     - Read the generated workflow file
+     - Search for job-level `if:` fields (same indentation as `runs-on:`)
+     - If any job-level `if:` contains `hashFiles`, this is a BLOCKING ERROR
+     - Fix immediately by moving condition to step level
+     - Re-validate after fix
+     - DO NOT proceed to Phase 4 until this is fixed
    - Check YAML syntax validity
    - Verify all GitHub Actions expressions use correct `${{ }}` syntax
    - Verify no missing required fields
    - Check for valid job dependencies and workflow triggers
    - **If linting errors are found**: Fix them immediately before proceeding to Phase 4
+   - **CRITICAL**: Job-level `hashFiles()` will cause workflow validation failure - must be fixed
    - Report any linting errors found and confirm they are resolved
 
 6. **User Confirmation:**
    - Ask user: "Are these workflow files ready for commit and push to the repository?"
    - On positive confirmation, proceed to Phase 4 (Commit & Push Changes).
    - On decline, permit user to abort or suggest edits to the workflows before proceeding to Phase 4.
+   - **Update plan checkboxes** - Mark completed steps [x] in `.cicd-docs/review-notes.md`
+   - **Update cicd-state.md** - Update Phase 3 status
 
 **Note:** This phase is for review and approval only. Actual commit, push, and finalization occur in Phase 4.

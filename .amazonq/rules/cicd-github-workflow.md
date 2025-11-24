@@ -4,33 +4,32 @@
 
 ## Navigation
 
-**Main Workflow**: This file (`cicd-github-workflow.md`)
+**Main Workflow**: This file (`cicd-github-workflow.mdc`)
 
 **Phase Files**:
 
-- `phase1-detect-plan.md` - Phase 1: Detect & Plan
-- `phase2-generate-workflow.md` - Phase 2: Generate Workflows
-- `phase3-review-confirm.md` - Phase 3: Review & Confirm
-- `phase4-commit-push.md` - Phase 4: Commit & Push
+- `phase1-detect-plan.mdc` - Phase 1: Detect & Plan
+- `phase2-generate-workflow.mdc` - Phase 2: Generate Workflows
+- `phase3-review-confirm.mdc` - Phase 3: Review & Confirm
+- `phase4-commit-push.mdc` - Phase 4: Commit & Push
 
 **Supporting Documents**:
 
-- `session-continuity.md` - Session management and resumption
-- `workflow-common-issues.md` - Common issues and solutions
-- `workflow-dependency-handling.md` - Dependency handling patterns
-- `orchestrator-workflow-patterns.md` - Orchestrator workflow patterns for managing dependencies
-- `error-handling.md` - Error scenarios and responses
-- `rollback-procedures.md` - Rollback and undo procedures
-- `validation-checklist.md` - Comprehensive validation criteria
-- `cicd-state.md` - State file template
+- `session-continuity.mdc` - Session management and resumption
+- `workflow-common-issues.mdc` - Common issues and solutions
+- `workflow-dependency-handling.mdc` - Dependency handling patterns
+- `error-handling.mdc` - Error scenarios and responses
+- `rollback-procedures.mdc` - Rollback and undo procedures
+- `validation-checklist.mdc` - Comprehensive validation criteria
+- `cicd-state.mdc` - State file template
 
 **Standards Files**:
 
-- `python-standards.md` - Python CI/CD patterns
-- `terraform-standards.md` - Terraform CI/CD patterns
-- `{code-type}-standards.md` - Language-specific patterns
+- `python-standards.mdc` - Python CI/CD patterns
+- `terraform-standards.mdc` - Terraform CI/CD patterns
+- `{code-type}-standards.mdc` - Language-specific patterns
 
-**See Also**: `INDEX.md` for complete file index and navigation guide
+**See Also**: `INDEX.mdc` for complete file index and navigation guide
 
 ## Override Instructions
 
@@ -39,6 +38,33 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
 ## MANDATORY: Rule Details Loading
 
 **CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files in `.amazonq/rules/cicd-phases/` directory. Do not summarize or paraphrase - use the complete content as written.
+
+## MANDATORY: MCP Server Integration
+
+**CRITICAL**: When performing CI/CD workflow generation, leverage available MCP servers to enhance capabilities:
+
+### GitHub MCP Server Integration
+
+- **Workflow Management**: Use `github-mcp-server` to check existing GitHub Actions workflows
+- **Repository Analysis**: Analyze repository structure, branches, and settings via GitHub MCP
+- **Workflow Deployment**: Create or update GitHub Actions workflows using MCP server
+- **Workflow Execution**: Trigger workflow runs and check workflow status via MCP
+- **Secrets Management**: Check GitHub secrets availability for CI/CD workflows
+
+### AWS MCP Server Integration
+
+- **Resource Validation**: Validate AWS resources referenced in workflows exist and are accessible
+- **IAM Roles**: Verify IAM roles and permissions needed for CI/CD workflows
+- **Environment Setup**: Check AWS environments and configurations via MCP
+- **Deployment Validation**: Validate deployment targets and environments
+
+### Docker MCP Server Integration
+
+- **Container Operations**: Use `docker-mcp-server` for container build and push operations in workflows
+- **Image Management**: Manage Docker images and registries via MCP
+- **Container Validation**: Validate container configurations and dependencies
+
+**Usage Pattern**: When generating CI/CD workflows, use MCP servers to validate GitHub repository settings, AWS resources, and Docker configurations before finalizing workflows.
 
 ## MANDATORY: Smart Context Loading for Resume
 
@@ -53,7 +79,7 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
 
 ### Mandatory Loading Rules:
 
-1. **Always read cicd-state.md first** to understand current phase (prefer `.cicd-docs/cicd-state.md`, fallback to `.amazonq/rules/cicd-phases/cicd-state.md`)
+1. **Always read cicd-state.md first** to understand current phase (prefer `.cicd-docs/cicd-state.md`, fallback to `.amazonq/rules/cicd-phases/cicd-state.mdc`)
 2. **Load incrementally** - each phase needs context from all previous phases
 3. **Workflow files are special** - must read existing workflow files in `.github/workflows/` in addition to all artifacts
 4. **Requirements files are CRITICAL** - must load requirements files to understand dependencies between code artifacts
@@ -85,7 +111,7 @@ Always follow this workflow when user mentions CICD GitHub workflow generation. 
 
 ## MANDATORY: Session Continuity and Re-generation
 
-**CRITICAL**: When detecting an existing CICD workflow generation project, you MUST read and follow the session continuity instructions from `cicd-phases/session-continuity.md` before proceeding with any phase.
+**CRITICAL**: When detecting an existing CICD workflow generation project, you MUST read and follow the session continuity instructions from `cicd-phases/session-continuity.mdc` before proceeding with any phase.
 
 **Re-generation Support**: If the user explicitly requests to "regenerate", "re-generate", "refresh", or "update" workflows, you MUST:
 
@@ -107,15 +133,13 @@ I'll guide you through a streamlined 4-phase process to automatically generate a
 
 The process includes:
 
-- 🔍 **Phase 1: Detect & Plan** – Scan repository for all code types (Python, Terraform, JavaScript, Java, Go, Docker, etc.) and plan multi-environment deployment workflows
-- 🏗️ **Phase 2: Generate Workflows** – Create modular, multi-environment GitHub Actions with deployment pipelines:
-  - **Development**: Deploy to dev environment when changes are pushed to `develop` branch
-  - **Test**: Deploy to test environment when changes are pushed to `main` branch
-  - **Production**: Automatically deploy to prod environment after successful test deployment completion
+- 🔍 **Phase 1: Detect & Plan** – Scan repository for all code types (Python, Terraform, JavaScript, Java, Go, Docker, etc.) and plan single production deployment workflow
+- 🏗️ **Phase 2: Generate Workflows** – Create single unified production GitHub Actions workflow with deployment pipeline:
+  - **Production**: Deploy to production environment when changes are pushed to `main` branch
 - ✅ **Phase 3: Review & Confirm** – Review workflows, scan steps, and finalize integration
 - 🚀 **Phase 4: Commit & Push** – Commit and push workflow files to repository with explicit approval
 
-This focused approach ensures your codebase is production-ready with automated multi-environment deployments following AWS/Amazon code quality and security best practices. Let's begin!"
+This focused approach ensures your codebase is production-ready with automated single production deployment following AWS/Amazon code quality and security best practices. Let's begin!"
 
 ## Welcome
 
@@ -127,9 +151,9 @@ This focused approach ensures your codebase is production-ready with automated m
      - Start completely fresh from Phase 1
    - After cleanup, log regeneration request in new `.cicd-docs/audit.md` with timestamp and reason
 2. **Display Custom Welcome Message**: Show the CICD welcome message above
-3. **Check for Existing Session**: Before proceeding, check for existing CICD workflow generation session by reading `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.md` (legacy)
+3. **Check for Existing Session**: Before proceeding, check for existing CICD workflow generation session by reading `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.mdc` (legacy)
    - **If Regeneration Request**: Skip existing session check (folders already removed), proceed directly to new session
-4. **If Existing Session Detected (and NOT regeneration)**: Follow session continuity instructions from `cicd-phases/session-continuity.md` and present "Welcome Back" prompt
+4. **If Existing Session Detected (and NOT regeneration)**: Follow session continuity instructions from `cicd-phases/session-continuity.mdc` and present "Welcome Back" prompt
 5. **If New Session or Regeneration**: Proceed with initial welcome, mention that this is a fresh start (regeneration) or new session
 6. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
 7. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin detection and planning?**" - DO NOT PROCEED until user confirms
@@ -145,12 +169,12 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 ## Phase 1: Detect & Plan Workflows
 
-1. **Load all steps from `cicd-phases/phase1-detect-plan.md`**
-2. Execute steps to scan for code, identify environments, draft plan, and checkpoint user confirmation.
+1. **Load all steps from `cicd-phases/phase1-detect-plan.mdc`**
+2. Execute steps to scan for code, identify dependencies, draft plan, and checkpoint user confirmation.
 3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/detection-plan.md` (or `.cicd-docs/phase1-plan.md`) as work progresses
-4. **Update cicd-state.md** - Update Phase 1 status and detected environments after completion
+4. **Update cicd-state.md** - Update Phase 1 status and detected code types after completion
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
-6. **Ask for Confirmation and WAIT**: Ask: "Detection and planning complete. Are you ready to generate workflows?" - DO NOT PROCEED until user confirms
+6. **Ask for Confirmation and WAIT**: Ask: "Detection and planning complete. Proceed to generate single production workflow as planned?" - DO NOT PROCEED until user confirms
 7. **Log response with timestamp** - Record user response in `.cicd-docs/audit.md` after receiving it
 8. **MANDATORY**: Remind user to commit artifacts to git after phase completion
 
@@ -158,12 +182,12 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 ## Phase 2: Generate Workflow Files
 
-1. **Load all steps from `cicd-phases/phase2-generate-workflow.md`**
+1. **Load all steps from `cicd-phases/phase2-generate-workflow.mdc`**
 2. Execute steps to render workflow YAML, match jobs to context, and checkpoint before review.
 3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/workflow-generation-plan.md` (or `.cicd-docs/phase2-plan.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 2 status and generated files list after completion
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
-6. **Ask for Confirmation and WAIT**: Ask: "Workflows generated. Are you ready to review and confirm?" - DO NOT PROCEED until user confirms
+6. **Ask for Confirmation and WAIT**: Ask: "Single production workflow generated. Are you ready to review and confirm?" - DO NOT PROCEED until user confirms
 7. **Log response with timestamp** - Record user response in `.cicd-docs/audit.md` after receiving it
 8. **MANDATORY**: Remind user to commit artifacts to git after phase completion
 
@@ -171,12 +195,12 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 ## Phase 3: Review & Confirm
 
-1. **Load all steps from `cicd-phases/phase3-review-confirm.md`**
+1. **Load all steps from `cicd-phases/phase3-review-confirm.mdc`**
 2. Execute steps to review generated workflows, present details, and checkpoint before finalization.
 3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/review-notes.md` (or `.cicd-docs/phase3-notes.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 3 status and review notes after completion
 5. **Log prompt with timestamp** - Record approval prompt in `.cicd-docs/audit.md` before asking
-6. **Ask for Final Confirmation**: Ask: "CICD setup complete. Do you approve the final workflows for integration?" - DO NOT PROCEED until user confirms
+6. **Ask for Final Confirmation**: Ask: "Single production CICD workflow complete. Do you approve the final workflow for integration?" - DO NOT PROCEED until user confirms
 7. **Log response with timestamp** - Record user response in `.cicd-docs/audit.md` after receiving it
 8. **MANDATORY**: Remind user to commit artifacts to git after phase completion
 
@@ -184,7 +208,7 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 
 # Phase 4: Commit & Push
 
-1. **Load all steps from `cicd-phases/phase4-commit-push.md`**
+1. **Load all steps from `cicd-phases/phase4-commit-push.mdc`**
 2. Execute steps to commit generated/updated workflow files and push to the repository, only after explicit user approval.
 3. **Update plan checkboxes** - Mark completed steps [x] in plan document `.cicd-docs/review-notes.md` (or `.cicd-docs/phase3-notes.md`) as work progresses
 4. **Update cicd-state.md** - Update Phase 4 status and mark overall workflow as complete
@@ -203,98 +227,35 @@ Follow this 4-phase approach. For each phase, load and execute detailed steps fr
 - Generate workflows ONLY for detected code types
 - If existing workflows exist, analyze them and modify/remove as needed based on current codebase
 
-## Environment-Specific CI/CD Workflow Architecture
+## Single Production CI/CD Workflow Architecture
 
-### Two-Tier Architecture: Orchestrator + Code Type Workflows
+### Unified Single Workflow Architecture
 
-**When dependencies exist between code types**, generate orchestrator workflows to manage execution order:
+Generate **one unified production workflow file** (`.github/workflows/ci-cd.yml`) that contains jobs for ALL detected code types:
 
-**Orchestrator Workflows** (one per environment):
-
-- `orchestrator-dev.yml` - Orchestrates all code type workflows for dev environment
-- `orchestrator-test.yml` - Orchestrates all code type workflows for test environment
-- `orchestrator-prd.yml` - Orchestrates all code type workflows for prod environment
-
-**Code Type Workflows** (three per code type, per environment):
-
-- `{code-type}-dev.yml` - CI + Deploy to Dev (can be triggered independently or via orchestrator)
-- `{code-type}-test.yml` - CI + Deploy to Test (can be triggered independently or via orchestrator)
-- `{code-type}-prd.yml` - CI + Deploy to Prod (can be triggered independently or via orchestrator)
-
-**When to Generate Orchestrators**:
-
-- **ALWAYS generate orchestrators**: Orchestrator workflows are generated for ALL scenarios to maintain consistency and simplify dependency management
-- This ensures uniform workflow structure regardless of the number of code types or dependency complexity
-
-**Orchestrator Benefits**:
-
-- Simplified dependency management (dependencies managed in one place)
-- Clear execution order (topological sort ensures correct order)
-- Simple syntax using reusable workflows (`uses: ./.github/workflows/wf.yml`)
-- Automatic dependency chaining (each step waits for previous)
-- Centralized error handling and reporting
-- Reusable code type workflows (can still be triggered independently)
-- Easier debugging (single workflow run shows entire deployment pipeline)
-
-**See**: `orchestrator-workflow-patterns.md` for detailed orchestrator patterns and implementation
-
-### Code Type Workflows (Individual)
-
-For each detected code type, generate **three separate workflow files**, one per environment:
-
-**Deploy to Dev Workflow** (`.github/workflows/{code-type}-dev.yml`):
+**Single Production Workflow** (`.github/workflows/ci-cd.yml`):
 
 - **Trigger**:
-  - Runs on pushes to `develop` branch
-  - Supports `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
-- **CI Jobs**: lint, test, security scan, artifact generation
-  - Runs as separate parallel jobs where possible
-  - Uploads build artifacts
-- **Deploy to Dev Job**:
-  - **Requires**: Successful completion of all CI jobs
-  - **If has dependencies**: Downloads artifacts from upstream workflows before deployment
-  - Deploys to Development environment
-  - Uses GitHub `environment: dev` for secrets and protection rules
-
-**Deploy to Test Workflow** (`.github/workflows/{code-type}-test.yml`):
-
-- **Trigger**:
-  - Runs on pushes to `main` branch
-  - Supports `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
-- **CI Jobs**: lint, test, security scan, artifact generation
-  - Runs as separate parallel jobs where possible
-  - Uploads build artifacts
-- **Deploy to Test Job**:
-  - **Requires**: Successful completion of all CI jobs
-  - **If has dependencies**: Downloads artifacts from upstream workflows before deployment
-  - Deploys to Test environment
-  - Uses GitHub `environment: test` for secrets and protection rules
-
-**Deploy to Prod Workflow** (`.github/workflows/{code-type}-prd.yml`):
-
-- **Trigger**: 
-  - `workflow_run` on successful completion of `{code-type}-test.yml` workflow
-  - **Branch Requirement**: MUST only trigger when test workflow ran on `main` branch
-  - Uses `branches: [main]` filter in `workflow_run` trigger
-  - Supports `workflow_call` trigger for orchestrator invocation (required for reusable workflows)
-- **CI Jobs**: lint, test, security scan, artifact generation
-  - Runs as part of the workflow
-  - Uploads build artifacts
-- **Deploy to Prod Job**:
-  - **Requires**: Successful completion of all CI jobs
-  - Deploys to Production environment
-  - Uses GitHub `environment: prod` with protection rules/approvals
-  - Protected with GitHub environment protection rules
+  - Runs on pushes to `main` branch only
+  - Supports `workflow_dispatch` trigger for manual execution
+- **Environment**: Single production environment (all deploy jobs use `environment: production`)
+- **Structure**: Contains jobs for each code type sequenced by dependencies
+- **Job Structure for Each Code Type**:
+  - **CI Jobs** (run in parallel): lint, security scan, test
+  - **Build Job** (runs after CI jobs): Build and package artifacts
+  - **Deploy Job** (runs after build and upstream dependencies): Deploy to production
+- **Dependency Handling**: Job dependencies (`needs:`) enforce execution order within the same workflow
+- **Artifact Passing**: Artifacts are passed between jobs using GitHub Actions artifacts within the same workflow
 
 **Workflow Structure:**
 
-- Each environment has its own workflow file
-- Each workflow contains CI jobs + deployment job for that environment
-- **Trigger Logic**:
-  - **Dev workflow**: `develop` branch push + `workflow_call` (for orchestrator)
-  - **Test workflow**: `main` branch push + `workflow_call` (for orchestrator)
-  - **Prod workflow**: `workflow_run` trigger after successful test workflow on `main` branch + `workflow_call` (for orchestrator)
-- **Dependency Handling**: Orchestrator workflows manage execution order using reusable workflow pattern (`uses: ./.github/workflows/wf.yml`)
+- Single workflow file contains all code types
+- Jobs are sequenced by dependencies using `needs:` dependencies
+- Code types with no dependencies run first
+- Dependent code types wait for upstream deploy jobs to complete
+- All deploy jobs use `environment: production`
+- **Trigger Logic**: `main` branch push only (no other branch triggers)
+- **Dependency Handling**: Job dependencies within the same workflow manage execution order
 
 ## Workflow Requirements
 
@@ -332,19 +293,19 @@ The system scans for common code types using file patterns and directory structu
 
 **CRITICAL**: Language-specific guidance for CI/CD workflows is stored in separate standards files within `.amazonq/rules/cicd-phases/`:
 
-- `python-standards.md` - Python CI/CD workflow patterns and standards
-- `terraform-standards.md` - Terraform CI/CD workflow patterns and standards
-- `javascript-standards.md` - JavaScript/TypeScript CI/CD workflow patterns and standards
-- `java-standards.md` - Java CI/CD workflow patterns and standards
-- `go-standards.md` - Go CI/CD workflow patterns and standards
-- `docker-standards.md` - Docker CI/CD workflow patterns and standards
-- `kubernetes-standards.md` - Kubernetes CI/CD workflow patterns and standards
-- `cloudformation-standards.md` - CloudFormation CI/CD workflow patterns and standards
-- `cdk-standards.md` - CDK CI/CD workflow patterns and standards
+- `python-standards.mdc` - Python CI/CD workflow patterns and standards
+- `terraform-standards.mdc` - Terraform CI/CD workflow patterns and standards
+- `javascript-standards.mdc` - JavaScript/TypeScript CI/CD workflow patterns and standards
+- `java-standards.mdc` - Java CI/CD workflow patterns and standards
+- `go-standards.mdc` - Go CI/CD workflow patterns and standards
+- `docker-standards.mdc` - Docker CI/CD workflow patterns and standards
+- `kubernetes-standards.mdc` - Kubernetes CI/CD workflow patterns and standards
+- `cloudformation-standards.mdc` - CloudFormation CI/CD workflow patterns and standards
+- `cdk-standards.mdc` - CDK CI/CD workflow patterns and standards
 
 When generating workflows for a detected code type, you MUST:
 
-1. Read the corresponding standards file from `.amazonq/rules/cicd-phases/{code-type}-standards.md`
+1. Read the corresponding standards file from `.amazonq/rules/cicd-phases/{code-type}-standards.mdc`
 2. Apply the complete content from that file when generating the workflow
 3. Do not summarize or paraphrase - use the complete content as written
 
@@ -378,7 +339,7 @@ The workflow uses a two-level checkbox tracking system:
 #### 2. Phase-Level Progress Tracking (cicd-state.md)
 
 - **Purpose**: Track overall workflow progress across phases
-- **Location**: `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.md` (legacy fallback)
+- **Location**: `.cicd-docs/cicd-state.md` (preferred) or `.amazonq/rules/cicd-phases/cicd-state.mdc` (legacy fallback)
 - **When to Update**: Mark phases [x] only when the entire phase is complete and approved by user
 
 ### Mandatory Update Rules
@@ -414,15 +375,14 @@ The workflow uses a two-level checkbox tracking system:
 
 ## Workflow Files
 
-Workflow files follow the pattern: `{code-type}-{environment}.yml`
+**Single Production Workflow File**:
 
-For each detected code type, three environment-specific workflow files (unified CI + CD):
+- `.github/workflows/ci-cd.yml` - Single unified production workflow containing all code types
+  - Triggers on `main` branch push only
+  - Contains jobs for all detected code types sequenced by dependencies
+  - All deploy jobs use `environment: production`
 
-- `.github/workflows/{code-type}-dev.yml` - CI + Deploy to dev (triggers on `develop` branch push)
-- `.github/workflows/{code-type}-test.yml` - CI + Deploy to test (triggers on `main` branch push)
-- `.github/workflows/{code-type}-prd.yml` - CI + Deploy to prod (triggers via workflow_run after successful test completion)
-
-Use kebab-case, descriptive file names based on detected code types
+Use kebab-case for workflow file name: `ci-cd.yml`
 
 ## Directory Structure
 
@@ -433,17 +393,11 @@ Use kebab-case, descriptive file names based on detected code types
 
 .github/
 └── workflows/                 # Generated GitHub Actions workflow files
-    ├── orchestrator-dev.yml        # Orchestrator for dev environment (if dependencies exist)
-    ├── orchestrator-test.yml       # Orchestrator for test environment (if dependencies exist)
-    ├── orchestrator-prd.yml        # Orchestrator for prod environment (if dependencies exist)
-    ├── {code-type}-dev.yml         # Dev environment workflow (CI + Deploy to Dev)
-    ├── {code-type}-test.yml        # Test environment workflow (CI + Deploy to Test)
-    └── {code-type}-prd.yml         # Prod environment workflow (CI + Deploy to Prod)
+    └── ci-cd.yml                  # Single production workflow (triggered by main branch)
 
 .amazonq/rules/cicd-phases/    # CI/CD workflow generation rules
-├── cicd-state.md              # Legacy state file (only if .cicd-docs/ doesn't exist)
-├── orchestrator-workflow-patterns.md  # Orchestrator workflow patterns
-├── {code-type}-standards.md   # Language-specific CI/CD standards (one per code type)
+├── cicd-state.mdc              # Legacy state file (only if .cicd-docs/ doesn't exist)
+├── {code-type}-standards.mdc   # Language-specific CI/CD standards (one per code type)
 └── [phase files]              # Phase execution instructions
 ```
 
@@ -451,21 +405,18 @@ Use kebab-case, descriptive file names based on detected code types
 
 - **Language-Agnostic Detection**: Scan for ALL code types in the repository, not just Python/Terraform
 - **Simplified Re-generation**: For regeneration requests, simply delete `.cicd-docs/` and `.github/workflows/` directories before starting - ensures completely clean start
-- **Existing Workflow Management**: For new generation (not regeneration), existing workflows in `.github/workflows/` will be replaced by newly generated workflows with matching names
+- **Existing Workflow Management**: For new generation (not regeneration), existing workflows in `.github/workflows/` will be replaced by the newly generated single production workflow
 - Always generate ONLY for detected code types
-- **Orchestrator Workflows**: ALWAYS generate orchestrator workflows for consistency and simplified dependency management:
-  - `orchestrator-dev.yml` - Orchestrates all code type workflows for dev (triggers on `develop` branch push)
-  - `orchestrator-test.yml` - Orchestrates all code type workflows for test (triggers on `main` branch push)
-  - `orchestrator-prd.yml` - Orchestrates all code type workflows for prod (triggers via workflow_run after successful test orchestrator)
-- **Environment-Specific Workflows**: Generate three separate workflow files per code type:
-  - `{code-type}-dev.yml` - CI + Deploy to Dev (triggers on `develop` branch push OR via orchestrator)
-  - `{code-type}-test.yml` - CI + Deploy to Test (triggers on `main` branch push OR via orchestrator)
-  - `{code-type}-prd.yml` - CI + Deploy to Prod (triggers via workflow_run after successful test completion OR via orchestrator)
-- **Branch-Based Deployment Triggers**:
-  - Develop branch → Development environment workflow (direct push trigger)
-  - Main branch → Test environment workflow (direct push trigger)
-  - Production environment workflow (workflow_run trigger after successful test deployment completion, auto-triggered)
-- **Language-Specific Standards**: Read and apply complete content from `{code-type}-standards.md` files in `cicd-phases/` directory
+- **Single Production Workflow**: Generate one unified workflow file containing all code types:
+  - `ci-cd.yml` - Single production workflow (triggers on `main` branch push only)
+  - Contains jobs for all detected code types sequenced by dependencies
+  - All deploy jobs use `environment: production`
+- **No Orchestrator Workflows**: Not needed for single workflow architecture - dependencies managed via job `needs:` within the same workflow
+- **No Multi-Environment Workflows**: Single production environment only - no dev/test/prod separation
+- **Branch-Based Deployment Trigger**:
+  - Main branch push → Single production workflow (direct push trigger)
+  - No other branch triggers
+- **Language-Specific Standards**: Read and apply complete content from `{code-type}-standards.mdc` files in `cicd-phases/` directory
 - Minimal, modular checkpoints across all phases
 - **MANDATORY**: Use the two-level checkbox tracking system (plan files + cicd-state.md)
 - **MANDATORY**: Update plan file checkboxes [x] immediately after completing each step's work
@@ -478,7 +429,7 @@ Use kebab-case, descriptive file names based on detected code types
 
 # Session Continuity (Summary)
 
-- Always follow `cicd-phases/session-continuity.md` for detecting/resuming sessions
-- Prefer storing state and approvals under project docs: `.cicd-docs/cicd-state.md` and `.cicd-docs/audit.md` (fallback to legacy `.amazonq/rules/cicd-phases/cicd-state.md` if needed)
+- Always follow `cicd-phases/session-continuity.mdc` for detecting/resuming sessions
+- Prefer storing state and approvals under project docs: `.cicd-docs/cicd-state.md` and `.cicd-docs/audit.md` (fallback to legacy `.amazonq/rules/cicd-phases/cicd-state.mdc` if needed)
 - Always read cicd-state.md first to understand current phase before proceeding
 - Provide context summary when resuming sessions

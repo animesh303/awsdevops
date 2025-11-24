@@ -10,12 +10,38 @@ Always follow this workflow when user mentions implementing requirements from JI
 
 **CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files in `.amazonq/rules/code-phases/` directory. Do not summarize or paraphrase - use the complete content as written.
 
+## MANDATORY: MCP Server Integration
+
+**CRITICAL**: When performing code generation operations, leverage available MCP servers to enhance capabilities:
+
+### AWS MCP Server Integration
+
+- **Resource Management**: Use `aws-mcp-server` to check existing AWS resources before generating infrastructure code
+- **Resource Validation**: Validate generated infrastructure against AWS service limits and best practices
+- **Deployment**: Use AWS MCP to deploy resources after code generation (if approved)
+- **Resource Queries**: Query AWS resources to understand current infrastructure state
+
+### Terraform MCP Server Integration
+
+- **State Management**: Use `terraform-mcp-server` to check Terraform state and validate infrastructure
+- **Plan Operations**: Generate Terraform plans using MCP server
+- **Apply Operations**: Apply Terraform changes using MCP server (with approval)
+- **State Operations**: Query and manage Terraform state via MCP
+
+### Git MCP Server Integration
+
+- **Version Control**: Use `git-mcp-server` for commit operations and branch management
+- **Change Tracking**: Track code changes and generate commit messages
+- **Branch Operations**: Create feature branches for code generation
+
+**Usage Pattern**: When generating infrastructure code, use MCP servers to validate against real AWS resources and Terraform state before finalizing code.
+
 ## MANDATORY: Session Continuity
 
 **CRITICAL**: When detecting an existing code generation project, you MUST:
 
 1. **Read code-state.md first** - Always read `.code-docs/code-state.md` to understand current phase
-2. **Follow session continuity instructions** - Read and follow the session continuity instructions from `code-phases/session-continuity.md`
+2. **Follow session continuity instructions** - Read and follow the session continuity instructions from `code-phases/session-continuity.mdc`
 3. **Load Previous Phase Artifacts** - Before resuming any phase, automatically read all relevant artifacts from previous phases according to Smart Context Loading rules
 4. **Provide Context Summary** - After loading artifacts, provide brief summary of what was loaded for user awareness
 5. **Present Continuity Options** - ALWAYS present session continuity options directly in the chat session using the template from session-continuity.md
@@ -70,8 +96,8 @@ When the user requests to implement requirements or generate code, follow this s
 ## Phase 1: Select Requirements
 
 1. **Load Context**: If resuming, read code-state.md and load any existing requirements artifacts
-2. Load all steps from `code-phases/phase1-select-requirements.md`
-3. Execute the steps loaded from `code-phases/phase1-select-requirements.md`
+2. Load all steps from `code-phases/phase1-select-requirements.mdc`
+3. Execute the steps loaded from `code-phases/phase1-select-requirements.mdc`
 4. **Update Progress**: Update code-state.md with Phase 1 progress after completion
 5. **Log Approval**: Before asking for confirmation, log the prompt in audit.md with timestamp
 6. **Ask for Confirmation and WAIT**: Ask: "**Requirements selected. Are you ready to generate code?**" - DO NOT PROCEED until user confirms
@@ -82,8 +108,8 @@ When the user requests to implement requirements or generate code, follow this s
 ## Phase 2: Generate Code
 
 1. **Load Context**: Load requirements + selected requirements document + analysis from Phase 1
-2. Load all steps from `code-phases/phase2-generate-code.md`
-3. Execute the steps loaded from `code-phases/phase2-generate-code.md`
+2. Load all steps from `code-phases/phase2-generate-code.mdc`
+3. Execute the steps loaded from `code-phases/phase2-generate-code.mdc`
 4. **Update Progress**: Update code-state.md with Phase 2 progress after completion
 5. **Log Approval**: Before asking for confirmation, log the prompt in audit.md with timestamp
 6. **Ask for Confirmation and WAIT**: Ask: "**Code generated. Are you ready to review and refine?**" - DO NOT PROCEED until user confirms
@@ -94,8 +120,8 @@ When the user requests to implement requirements or generate code, follow this s
 ## Phase 3: Review & Refine
 
 1. **Load Context**: Load all requirements artifacts + generated code files + quality reports from Phases 1-2
-2. Load all steps from `code-phases/phase3-review-refine.md`
-3. Execute the steps loaded from `code-phases/phase3-review-refine.md`
+2. Load all steps from `code-phases/phase3-review-refine.mdc`
+3. Execute the steps loaded from `code-phases/phase3-review-refine.mdc`
 4. **Update Progress**: Update code-state.md with Phase 3 progress after completion
 5. **Log Approval**: Before asking for confirmation, log the prompt in audit.md with timestamp
 6. **Ask for Final Confirmation**: Ask: "**Code generation complete. Are you satisfied with the final implementation?**" - DO NOT PROCEED until user confirms
@@ -106,7 +132,7 @@ When the user requests to implement requirements or generate code, follow this s
 ## Phase 4: Commit & Push
 
 1. **Load Context**: Load all artifacts + existing code files from workspace + audit logs
-2. Load all steps from `code-phases/phase4-commit-push.md`
+2. Load all steps from `code-phases/phase4-commit-push.mdc`
 3. **Log Approval**: Before asking for confirmation, log the prompt in audit.md with timestamp
 4. Ask the user: "Do you want me to commit and push the generated code changes now?"
 5. WAIT for explicit approval, then execute commit and push steps. Do not proceed without approval.
@@ -222,13 +248,13 @@ tests/
 
 - Requirements: .code-docs/requirements/{TICKET-NUMBER}\_requirements.md
 - IAC Code: iac/{iac-tool}/ (all files in single folder, tool-specific naming)
-  - Tool-specific conventions are defined in `code-phases/{iac-tool}-standards.md` (e.g., terraform-standards.md)
+  - Tool-specific conventions are defined in `code-phases/{iac-tool}-standards.mdc` (e.g., terraform-standards.md)
   - Examples:
     - Terraform: {feature-name}-main.tf, {feature-name}-variables.tf, {feature-name}-output.tf
     - CDK: {feature-name}-stack.ts, {feature-name}-construct.ts
     - CloudFormation: {feature-name}-template.yaml
 - Application Code: src/{runtime-type}-{feature-name}/
-  - Runtime-specific conventions are defined in `code-phases/{language}-standards.md` (e.g., python-standards.md)
+  - Runtime-specific conventions are defined in `code-phases/{language}-standards.mdc` (e.g., python-standards.md)
   - Runtime to language mapping: Extract language name from runtime type (e.g., `lambda-python` → `python`, `lambda-nodejs` → `nodejs`, `container-python` → `python`, `lambda-java` → `java`)
   - Examples:
     - Lambda Python: src/lambda-python-{feature-name}/ → uses python-standards.md

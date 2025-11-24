@@ -99,7 +99,7 @@ When reconstructing state file from artifacts:
 
 - All Phase 1 artifacts PLUS:
 - `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
-- `jira-phases/requirements-template.md`
+- `jira-phases/requirements-template.mdc`
 
 #### Phase 3 Continuity
 

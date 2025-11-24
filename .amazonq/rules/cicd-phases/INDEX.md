@@ -1,30 +1,6 @@
-# CICD Workflow Generation Rules Index
-
-## Purpose
-
-This index provides navigation and overview of all CICD workflow generation rule files. Use this to quickly find relevant documentation.
-
----
-
-## Main Entry Point
-
-### `cicd-github-workflow.md`
-
-**Purpose**: Main orchestrator file - start here for CICD workflow generation  
-**Contains**:
-
-- Welcome process
-- 4-phase workflow overview
-- Key requirements and principles
-- Directory structure
-
-**Read First**: When starting CICD workflow generation
-
----
-
 ## Phase Files
 
-### `phase1-detect-plan.md`
+### `phase1-detect-plan.mdc`
 
 **Purpose**: Phase 1 execution steps - Detect code types and plan workflows  
 **Contains**:
@@ -34,9 +10,9 @@ This index provides navigation and overview of all CICD workflow generation rule
 - Dependency analysis
 - Workflow planning
 
-**Related**: `cicd-state.md`, `session-continuity.md`
+**Related**: `cicd-state.mdc`, `session-continuity.mdc`
 
-### `phase2-generate-workflow.md`
+### `phase2-generate-workflow.mdc`
 
 **Purpose**: Phase 2 execution steps - Generate workflow YAML files  
 **Contains**:
@@ -45,9 +21,9 @@ This index provides navigation and overview of all CICD workflow generation rule
 - Workflow structure requirements
 - Language-specific standards application
 
-**Related**: `workflow-common-issues.md`, `workflow-dependency-handling.md`, `{code-type}-standards.md`
+**Related**: `workflow-common-issues.mdc`, `workflow-dependency-handling.mdc`, `{code-type}-standards.mdc`
 
-### `phase3-review-confirm.md`
+### `phase3-review-confirm.mdc`
 
 **Purpose**: Phase 3 execution steps - Review and confirm workflows  
 **Contains**:
@@ -56,9 +32,9 @@ This index provides navigation and overview of all CICD workflow generation rule
 - Validation checks
 - User approval process
 
-**Related**: `validation-checklist.md`
+**Related**: `validation-checklist.mdc`
 
-### `phase4-commit-push.md`
+### `phase4-commit-push.mdc`
 
 **Purpose**: Phase 4 execution steps - Commit and push workflows  
 **Contains**:
@@ -67,13 +43,13 @@ This index provides navigation and overview of all CICD workflow generation rule
 - Commit message format
 - Push procedures
 
-**Related**: `rollback-procedures.md`
+**Related**: `rollback-procedures.mdc`
 
 ---
 
 ## Supporting Documents
 
-### `session-continuity.md`
+### `session-continuity.mdc`
 
 **Purpose**: Session management and resumption  
 **Contains**:
@@ -85,7 +61,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Resuming interrupted session or detecting existing session
 
-### `workflow-common-issues.md`
+### `workflow-common-issues.mdc`
 
 **Purpose**: Common issues and solutions when generating workflows  
 **Contains**:
@@ -98,7 +74,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Troubleshooting workflow generation errors
 
-### `workflow-dependency-handling.md`
+### `workflow-dependency-handling.mdc`
 
 **Purpose**: Comprehensive dependency handling patterns  
 **Contains**:
@@ -106,28 +82,12 @@ This index provides navigation and overview of all CICD workflow generation rule
 - Single dependency patterns
 - Multiple dependency patterns
 - Artifact passing methods (5 methods)
-- Environment-specific considerations
-- Orchestrator workflow pattern (always used)
+- Single environment considerations
 - Best practices
 
 **Use When**: Implementing dependencies between code artifacts
 
-### `orchestrator-workflow-patterns.md`
-
-**Purpose**: Orchestrator workflow patterns (always used for consistency)  
-**Contains**:
-
-- Two-tier architecture (orchestrator + code type workflows)
-- Dependency resolution using topological sort
-- Orchestrator workflow structure and patterns
-- Code type workflow modifications for orchestrator compatibility
-- Environment-specific orchestrators (dev/test/prd)
-- Benefits of always using orchestrators
-- Implementation checklist
-
-**Use When**: Generating workflows (orchestrators are always generated for consistency)
-
-### `error-handling.md`
+### `error-handling.mdc`
 
 **Purpose**: Error scenarios and response procedures  
 **Contains**:
@@ -139,7 +99,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Encountering errors during workflow generation
 
-### `rollback-procedures.md`
+### `rollback-procedures.mdc`
 
 **Purpose**: Rollback and undo procedures  
 **Contains**:
@@ -152,7 +112,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Need to undo changes or start over
 
-### `validation-checklist.md`
+### `validation-checklist.mdc`
 
 **Purpose**: Comprehensive validation criteria  
 **Contains**:
@@ -165,7 +125,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Validating workflows before proceeding to next phase
 
-### `cicd-state.md`
+### `cicd-state.mdc`
 
 **Purpose**: State file template  
 **Contains**:
@@ -181,7 +141,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 ## Standards Files
 
-### `python-standards.md`
+### `python-standards.mdc`
 
 **Purpose**: Python CI/CD workflow patterns  
 **Contains**:
@@ -194,7 +154,7 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Generating workflows for Python code
 
-### `terraform-standards.md`
+### `terraform-standards.mdc`
 
 **Purpose**: Terraform CI/CD workflow patterns  
 **Contains**:
@@ -207,10 +167,10 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 **Use When**: Generating workflows for Terraform code
 
-### `{code-type}-standards.md`
+### `{code-type}-standards.mdc`
 
 **Purpose**: Language-specific CI/CD patterns  
-**Pattern**: One file per code type (e.g., `javascript-standards.md`, `java-standards.md`)  
+**Pattern**: One file per code type (e.g., `javascript-standards.mdc`, `java-standards.mdc`)  
 **Use When**: Generating workflows for specific code types
 
 ---
@@ -219,31 +179,31 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 ### Starting Workflow Generation
 
-1. Read `cicd-github-workflow.md` (main file)
+1. Read `cicd-github-workflow.mdc` (main file)
 2. Follow Welcome process
 3. Execute phases in order
 
 ### During Workflow Generation
 
-- **Phase 1**: Follow `phase1-detect-plan.md`
-- **Phase 2**: Follow `phase2-generate-workflow.md`, reference `workflow-common-issues.md`, `workflow-dependency-handling.md`, and `orchestrator-workflow-patterns.md`
-- **Phase 3**: Follow `phase3-review-confirm.md`, use `validation-checklist.md`
-- **Phase 4**: Follow `phase4-commit-push.md`
+- **Phase 1**: Follow `phase1-detect-plan.mdc`
+- **Phase 2**: Follow `phase2-generate-workflow.mdc`, reference `workflow-common-issues.mdc`, `workflow-dependency-handling.mdc`
+- **Phase 3**: Follow `phase3-review-confirm.mdc`, use `validation-checklist.mdc`
+- **Phase 4**: Follow `phase4-commit-push.mdc`
 
 ### Troubleshooting
 
-- **Workflow errors**: See `workflow-common-issues.md`
-- **Dependency issues**: See `workflow-dependency-handling.md` and `orchestrator-workflow-patterns.md`
-- **General errors**: See `error-handling.md`
-- **Need to rollback**: See `rollback-procedures.md`
+- **Workflow errors**: See `workflow-common-issues.mdc`
+- **Dependency issues**: See `workflow-dependency-handling.mdc`
+- **General errors**: See `error-handling.mdc`
+- **Need to rollback**: See `rollback-procedures.mdc`
 
 ### Resuming Session
 
-- See `session-continuity.md` for session detection and resumption
+- See `session-continuity.mdc` for session detection and resumption
 
 ### Validation
 
-- Use `validation-checklist.md` before proceeding to next phase
+- Use `validation-checklist.mdc` before proceeding to next phase
 
 ---
 
@@ -251,24 +211,23 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 ```
 .amazonq/rules/
-├── cicd-github-workflow.md          # Main orchestrator
+├── cicd-github-workflow.mdc          # Main orchestrator
 └── cicd-phases/
-    ├── INDEX.md                      # This file
-    ├── phase1-detect-plan.md         # Phase 1
-    ├── phase2-generate-workflow.md   # Phase 2
-    ├── phase3-review-confirm.md      # Phase 3
-    ├── phase4-commit-push.md         # Phase 4
-    ├── session-continuity.md         # Session management
-    ├── workflow-common-issues.md    # Common issues
-    ├── workflow-dependency-handling.md # Dependencies
-    ├── orchestrator-workflow-patterns.md # Orchestrator patterns
-    ├── error-handling.md             # Error handling
-    ├── rollback-procedures.md        # Rollback procedures
-    ├── validation-checklist.md      # Validation checklist
-    ├── cicd-state.md                 # State template
-    ├── python-standards.md           # Python patterns
-    ├── terraform-standards.md        # Terraform patterns
-    └── {code-type}-standards.md      # Other language patterns
+    ├── INDEX.mdc                      # This file
+    ├── phase1-detect-plan.mdc         # Phase 1
+    ├── phase2-generate-workflow.mdc   # Phase 2
+    ├── phase3-review-confirm.mdc      # Phase 3
+    ├── phase4-commit-push.mdc         # Phase 4
+    ├── session-continuity.mdc         # Session management
+    ├── workflow-common-issues.mdc    # Common issues
+    ├── workflow-dependency-handling.mdc # Dependencies
+    ├── error-handling.mdc             # Error handling
+    ├── rollback-procedures.mdc        # Rollback procedures
+    ├── validation-checklist.mdc      # Validation checklist
+    ├── cicd-state.mdc                 # State template
+    ├── python-standards.mdc           # Python patterns
+    ├── terraform-standards.mdc        # Terraform patterns
+    └── {code-type}-standards.mdc      # Other language patterns
 ```
 
 ---
@@ -285,18 +244,13 @@ This index provides navigation and overview of all CICD workflow generation rule
 
 ### `.github/workflows/` Directory
 
-- `orchestrator-dev.yml` - Orchestrator for dev environment (if dependencies exist)
-- `orchestrator-test.yml` - Orchestrator for test environment (if dependencies exist)
-- `orchestrator-prd.yml` - Orchestrator for prod environment (if dependencies exist)
-- `{code-type}-dev.yml` - Dev environment workflows
-- `{code-type}-test.yml` - Test environment workflows
-- `{code-type}-prd.yml` - Prod environment workflows
+- `ci-cd.yml` - Single production workflow containing all code types (triggered by main branch, jobs sequenced by dependencies)
 
 ---
 
 ## Getting Help
 
-1. **Start with main file**: `cicd-github-workflow.md`
+1. **Start with main file**: `cicd-github-workflow.mdc`
 2. **Check phase file**: For phase-specific steps
 3. **Reference supporting docs**: For detailed patterns and troubleshooting
 4. **Use validation checklist**: Before proceeding

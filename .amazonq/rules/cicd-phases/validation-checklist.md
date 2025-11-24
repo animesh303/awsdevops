@@ -1,48 +1,3 @@
-# CICD Workflow Generation Validation Checklist
-
-## Purpose
-
-This comprehensive checklist ensures all generated workflows meet quality and correctness standards before proceeding to the next phase or committing to repository.
-
-## Related Files
-
-- See `phase2-generate-workflow.md` for workflow generation steps
-- See `phase3-review-confirm.md` for review procedures
-- See `workflow-common-issues.md` for troubleshooting
-
----
-
-## Phase 1: Detect & Plan Validation
-
-### Code Detection Validation
-
-- [ ] All code types detected correctly (Python, Terraform, JavaScript, etc.)
-- [ ] Code locations documented accurately
-- [ ] No false positives (detected code that doesn't exist)
-- [ ] No missed code types (code exists but not detected)
-
-### Requirements Files Validation
-
-- [ ] All requirements files loaded (if they exist)
-- [ ] Requirements files parsed correctly
-- [ ] Dependency information extracted accurately
-- [ ] Dependency map format is correct (structured format)
-
-### Dependency Analysis Validation
-
-- [ ] Dependency relationships identified correctly
-- [ ] Artifact requirements documented
-- [ ] Build order determined correctly
-- [ ] No circular dependencies
-
-### Workflow Planning Validation
-
-- [ ] Three workflows planned per code type (dev/test/prd)
-- [ ] Workflow triggers planned correctly
-- [ ] Environment assignments correct (dev/test/prod)
-- [ ] Dependency handling strategy documented
-
----
 
 ## Phase 2: Generate Workflows Validation
 
@@ -57,55 +12,58 @@ This comprehensive checklist ensures all generated workflows meet quality and co
 
 - [ ] All expressions use `${{ }}` syntax
 - [ ] No missing expression wrappers
-- [ ] `hashFiles()` used only in step-level `if` conditions
+- [ ] **CRITICAL**: `hashFiles()` used ONLY in step-level `if` conditions (NOT at job level)
+- [ ] **MANDATORY CHECK**: Scanned workflow file for job-level `if:` fields containing `hashFiles` - NONE found
 - [ ] All GitHub Actions functions properly wrapped
+- [ ] **Validation Method**: Read workflow YAML, parse structure, verify no `jobs.<job>.if` contains `hashFiles`
 
 ### Workflow Structure Validation
 
-- [ ] All workflows have required fields:
-  - [ ] `name` field present
-  - [ ] `on` trigger defined
+- [ ] Single production workflow has required fields:
+  - [ ] `name` field present (should be "CI/CD" or similar)
+  - [ ] `on` trigger defined (push to `main` branch only and `workflow_dispatch`)
   - [ ] `jobs` section present
   - [ ] Each job has `runs-on`
-- [ ] Workflow names follow pattern: `{code-type}-{environment}`
-- [ ] Workflow files named correctly: `{code-type}-{environment}.yml`
+- [ ] Workflow file named correctly: `ci-cd.yml`
+- [ ] All code types have jobs in the unified workflow
 
 ### Trigger Validation
 
-- [ ] Dev workflows trigger on `develop` branch (or `workflow_run` if dependencies)
-- [ ] Test workflows trigger on `main` branch (or `workflow_run` if dependencies)
-- [ ] Prod workflows use `workflow_run` trigger with `branches: [main]`
-- [ ] `workflow_run` triggers have `types: [completed]`
-- [ ] Branch filters correct for each environment
+- [ ] Production workflow triggers on `main` branch push only
+- [ ] `workflow_dispatch` trigger present for manual execution
+- [ ] No `workflow_run` triggers (not needed for single workflow)
+- [ ] No other branch triggers (only main branch)
 
 ### Job Structure Validation
 
-- [ ] CI jobs defined (lint, test, security scan)
-- [ ] Deployment job defined for each environment
+- [ ] For each code type, CI jobs defined (lint, security, test)
+- [ ] For each code type, build job defined
+- [ ] For each code type, deploy job defined
 - [ ] Job dependencies correct (`needs:` array)
 - [ ] No circular job dependencies
 - [ ] All referenced jobs exist
+- [ ] Jobs sequenced correctly based on dependencies (upstream jobs complete before downstream)
 
 ### Environment Validation
 
-- [ ] Environment names correct: `dev`, `test`, `prod` (lowercase)
-- [ ] Environment protection rules referenced (for prod)
-- [ ] Environment-specific secrets/variables configured
+- [ ] All deploy jobs use `environment: production` (single production environment)
+- [ ] Environment protection rules referenced (if needed)
+- [ ] Secrets/variables configured for production environment
+- [ ] No multiple environment configurations
 
 ### Checkout Step Validation
 
 - [ ] All jobs have checkout step
-- [ ] `workflow_run` triggered jobs use `ref: ${{ github.event.workflow_run.head_branch }}`
-- [ ] Push triggered jobs use standard checkout
+- [ ] Standard checkout used (`actions/checkout@v4`)
 - [ ] Checkout is first step in each job
 
 ### Dependency Handling Validation
 
-- [ ] `workflow_run` triggers added for dependencies
-- [ ] Artifact download steps present (if dependencies exist)
+- [ ] Job dependencies (`needs:`) correctly configured for dependencies
+- [ ] Artifact download steps present in downstream deploy jobs (if dependencies exist)
 - [ ] Artifact verification steps present
 - [ ] Artifact placement steps correct
-- [ ] Artifact passing method appropriate (single vs multiple dependencies)
+- [ ] Artifacts passed between jobs in same workflow (not cross-workflow)
 - [ ] Error handling for artifact downloads
 
 ### AWS Credentials Validation
@@ -124,10 +82,12 @@ This comprehensive checklist ensures all generated workflows meet quality and co
 
 ### Artifact Handling Validation
 
-- [ ] Artifacts uploaded with correct names
-- [ ] Artifact names include environment (e.g., `lambda-package-dev`)
+- [ ] Artifacts uploaded with correct names (simple, consistent naming)
+- [ ] Artifact names are consistent (e.g., `lambda-package`, not environment-specific)
 - [ ] Artifact retention configured appropriately
 - [ ] Artifact paths correct for download
+- [ ] Artifacts uploaded in build jobs
+- [ ] Artifacts downloaded in deploy jobs that need them
 
 ### Permissions Validation
 
@@ -139,7 +99,7 @@ This comprehensive checklist ensures all generated workflows meet quality and co
 ### Concurrency Validation
 
 - [ ] Concurrency groups configured (if needed)
-- [ ] Concurrency group names include environment
+- [ ] Concurrency group name is simple (e.g., `ci-cd-${{ github.ref }}`)
 - [ ] `cancel-in-progress` set appropriately
 
 ---
@@ -148,32 +108,27 @@ This comprehensive checklist ensures all generated workflows meet quality and co
 
 ### Workflow File Existence Validation
 
-- [ ] All planned workflows generated
-- [ ] Workflow files exist in `.github/workflows/`
-- [ ] File names match planned names
-- [ ] No missing workflow files
+- [ ] Single production workflow generated
+- [ ] Workflow file exists: `.github/workflows/ci-cd.yml`
+- [ ] File name matches planned name (`ci-cd.yml`)
+- [ ] No extra workflow files (old workflows removed if regenerating)
+- [ ] No orchestrator workflows (not needed for single workflow)
 
 ### Content Review Validation
 
-- [ ] Workflow YAML content reviewed
-- [ ] All jobs present and correct
-- [ ] Triggers configured correctly
-- [ ] Environments assigned correctly
-- [ ] Dependency handling implemented correctly
+- [ ] Single production workflow YAML content reviewed
+- [ ] All code types have jobs present and correct
+- [ ] Triggers configured correctly (push to `main` branch only, `workflow_dispatch`)
+- [ ] All deploy jobs use `environment: production`
+- [ ] Dependency handling implemented correctly (job dependencies via `needs:`)
 
 ### Dependency Graph Validation
 
 - [ ] Dependency relationships correct
-- [ ] Upstream workflows identified
-- [ ] Downstream workflows wait correctly
-- [ ] Artifact passing verified
-
-### Multi-Environment Validation
-
-- [ ] Three workflows per code type (dev/test/prd)
-- [ ] Environment-specific configurations correct
-- [ ] Branch triggers correct for each environment
-- [ ] Environment protection rules in place (prod)
+- [ ] Upstream jobs identified (code types with no dependencies)
+- [ ] Downstream jobs wait correctly (via `needs:` dependencies)
+- [ ] Artifact passing verified (between jobs in same workflow)
+- [ ] Execution order correct (topological sort applied)
 
 ### Linting Final Validation
 
@@ -221,8 +176,11 @@ This comprehensive checklist ensures all generated workflows meet quality and co
 
 - [ ] All Phase 2 validations passed
 - [ ] No linting errors
-- [ ] All workflows generated
-- [ ] Dependency handling implemented
+- [ ] Single production workflow generated (`ci-cd.yml`)
+- [ ] Workflow triggers on main branch only
+- [ ] All code types have jobs in unified workflow
+- [ ] All deploy jobs use `environment: production`
+- [ ] Dependency handling implemented (job dependencies via `needs:`)
 
 ### Before Proceeding to Phase 4
 
@@ -235,7 +193,8 @@ This comprehensive checklist ensures all generated workflows meet quality and co
 
 - [ ] All phases completed
 - [ ] All validations passed
-- [ ] Workflows committed and pushed
+- [ ] Single production workflow committed and pushed
+- [ ] Workflow triggers on main branch only
 - [ ] State files updated
 - [ ] Audit log complete
 

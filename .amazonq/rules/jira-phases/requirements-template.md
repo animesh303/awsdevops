@@ -85,6 +85,14 @@ Describe how users or systems will interact with the solution:
 
 **Architecture Approach**: High-level architectural approach (e.g., serverless, microservices, monolith).
 
+**Architecture Diagram**: Visual representation of the AWS architecture:
+
+![Architecture Diagram](./{TICKET-NUMBER}-architecture-diagram.png)
+
+**Figure 1: AWS Architecture Diagram**
+
+> **Note**: The architecture diagram is automatically generated based on the requirements. If the diagram is missing or incomplete, ensure that Section 4.2 (AWS Services) contains sufficient detail about the services and components to be used.
+
 **Technology Stack**: Preferred technologies (if applicable):
 
 - **Programming Language**: Python / Node.js / Java / Go / Other

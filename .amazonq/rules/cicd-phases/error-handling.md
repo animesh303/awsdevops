@@ -1,73 +1,14 @@
-# CICD Workflow Generation Error Handling
-
-## Purpose
-
-This document provides guidance for handling errors and edge cases during CICD workflow generation. Use this as a reference when encountering issues during any phase.
-
-## Related Files
-
-- See `phase1-detect-plan.md`, `phase2-generate-workflow.md`, `phase3-review-confirm.md`, `phase4-commit-push.md` for phase-specific steps
-- See `session-continuity.md` for session recovery procedures
-
----
-
-## Phase 1: Detect & Plan Errors
-
-### Error: Requirements Files Not Found
-
-**Scenario**: No requirements files found in `.code-docs/requirements/` or `.requirements/` directories.
-
-**Response**:
-
-- Continue with code detection without dependency analysis
-- Document in plan: "No requirements files found - proceeding without dependency analysis"
-- Generate workflows without dependency handling
-- Note: Dependencies can be added manually later if needed
-
-### Error: No Code Types Detected
-
-**Scenario**: Repository scan finds no code types (no Python, Terraform, JavaScript, etc.).
-
-**Response**:
-
-- Inform user: "No code types detected in repository. Cannot generate CICD workflows."
-- Ask user to confirm repository structure or add code files
-- Do not proceed to Phase 2
-
-### Error: Invalid Requirements File Format
-
-**Scenario**: Requirements files exist but cannot be parsed or contain invalid dependency information.
-
-**Response**:
-
-- Log warning in audit.md: "Requirements file {filename} could not be parsed"
-- Continue with code detection
-- Skip dependency analysis for that file
-- Proceed with workflows without those dependencies
-
-### Error: Existing Workflow Analysis Fails
-
-**Scenario**: Cannot read or parse existing workflow files in `.github/workflows/`.
-
-**Response**:
-
-- Log error in audit.md
-- For regeneration: Delete `.github/workflows/` directory and proceed
-- For new generation: Skip existing workflow analysis, proceed with generation
-
----
-
 ## Phase 2: Generate Workflows Errors
 
 ### Error: Standards File Missing
 
-**Scenario**: Detected code type has no corresponding standards file (e.g., `go-standards.md` not found for Go code).
+**Scenario**: Detected code type has no corresponding standards file (e.g., `go-standards.mdc` not found for Go code).
 
 **Response**:
 
 - Create standards file following pattern of existing standards files
 - Use language-appropriate CI/CD patterns
-- Document creation in plan: "Created {code-type}-standards.md"
+- Document creation in plan: "Created {code-type}-standards.mdc"
 - Proceed with workflow generation
 
 ### Error: Workflow Generation Fails
@@ -89,7 +30,7 @@ This document provides guidance for handling errors and edge cases during CICD w
 **Response**:
 
 - **MANDATORY**: Fix all linting errors before proceeding
-- Use `workflow-common-issues.md` for troubleshooting
+- Use `workflow-common-issues.mdc` for troubleshooting
 - Validate fixes before continuing
 - Do not proceed to Phase 3 until all workflows pass validation
 
@@ -251,10 +192,9 @@ This document provides guidance for handling errors and edge cases during CICD w
 
 **Procedure**:
 
-1. See `rollback-procedures.md` for detailed steps
-2. For regeneration: Delete `.cicd-docs/` and `.github/workflows/` directories
-3. Start fresh from Phase 1
-4. Log rollback in audit.md
+1. See `rollback-procedures.mdc` for detailed rollback scenarios and steps
+2. Follow appropriate rollback scenario based on current phase and commit status
+3. Log rollback in audit.md
 
 ### Recovery: Manual Intervention Required
 

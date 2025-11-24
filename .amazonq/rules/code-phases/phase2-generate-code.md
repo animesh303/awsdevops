@@ -1,4 +1,4 @@
-# Phase 2: Generate Code
+# Phase 2: Generate Code from selected JIRA requirement
 
 **Assume the role** of a senior AWS developer and infrastructure specialist
 
@@ -22,14 +22,22 @@
 
 3. **Generate Infrastructure as Code**: Create or update IaC configuration using selected IAC tool:
 
-   - **Read IAC tool standards**: Load standards from `code-phases/{iac-tool}-standards.md`
+   - **Read IAC tool standards**: Load standards from `code-phases/{iac-tool}-standards.mdc`
      - Map tool name directly: `terraform` → `terraform-standards.md`, `cdk` → `cdk-standards.md`, `cloudformation` → `cloudformation-standards.md`, `pulumi` → `pulumi-standards.md`
      - If standards file doesn't exist, warn user and proceed with AWS best practices
+   - **Use AWS MCP Server**: Before generating resources, check existing AWS resources:
+     - Query AWS resources via `aws-mcp-server` to understand current infrastructure
+     - Validate resource names don't conflict with existing resources
+     - Check AWS service limits and quotas
    - **New resources**: Generate feature-specific IaC files following project conventions and tool-specific standards
    - **Existing resources**: Update existing IaC files with required modifications
    - **Shared resources**: Generate or update shared configuration files as needed
    - **Tool-specific configuration**:
      - **For Terraform**:
+       - **Use Terraform MCP Server**: Leverage `terraform-mcp-server` for state operations:
+         - Check Terraform state via MCP before generating resources
+         - Validate resource names against existing state
+         - Use MCP to generate Terraform plans for validation
        - Ensure `iac/terraform/backend.tf` exists. If missing, create with DUMMY configuration and request user confirmation (BLOCKING)
          - Example:
          ```hcl
@@ -43,28 +51,32 @@
          }
          ```
        - After creating/modifying files, validate from `iac/terraform/` directory: `terraform fmt -recursive`, `terraform init -backend=false`, `terraform validate` (BLOCKING)
+       - **Use Terraform MCP Server**: Generate Terraform plan via MCP to validate changes before finalizing
        - Treat validation failures as BLOCKING. Iterate: fix the Terraform code, re-run `fmt`,
          `init -backend=false` (if applicable), and `validate` until exit code is 0
        - Save validation output to `.code-docs/quality-reports/terraform-validate.log`
      - **For AWS CDK**:
+       - **Use AWS MCP Server**: Validate CDK resources against AWS before synthesis
        - Ensure `cdk.json` exists. If missing, create with default configuration
        - After creating/modifying files, validate from project root or CDK app directory: `cdk synth` (BLOCKING)
        - Save validation output to `.code-docs/quality-reports/cdk-synth.log`
      - **For CloudFormation**:
+       - **Use AWS MCP Server**: Validate CloudFormation templates against AWS before deployment
        - Validate templates from `iac/cloudformation/` directory: Use `aws cloudformation validate-template --template-body file://{template-file}.yaml` (BLOCKING)
        - Save validation output to `.code-docs/quality-reports/cloudformation-validate.log`
      - **For Pulumi**:
+       - **Use AWS MCP Server**: Validate Pulumi resources against AWS
        - Validate configuration from directory containing `Pulumi.yaml`: `pulumi preview` (BLOCKING)
        - Save validation output to `.code-docs/quality-reports/pulumi-validate.log`
      - **For other IAC tools**: Follow tool-specific validation requirements
    - Use the `JiraId` tag to determine if resources already exist. If resources with `JiraId={TICKET-NUMBER}` are found, update those resources; if none are found, create new resources with the tag applied
    - **Tagging**: All AWS resources must include `JiraId = {TICKET-NUMBER}` and `ManagedBy = "{iac-tool}"` tags
    - Follow AWS security best practices, naming conventions, and least privilege IAM policies
-   - Follow tool-specific standards from `code-phases/{iac-tool}-standards.md`
+   - Follow tool-specific standards from `code-phases/{iac-tool}-standards.mdc`
 
 4. **Generate Application Code**: Create or update application code using selected runtime/language:
 
-   - **Read language standards**: Load standards from `code-phases/{language}-standards.md`
+   - **Read language standards**: Load standards from `code-phases/{language}-standards.mdc`
      - Extract language name from runtime type: `lambda-python` → `python`, `lambda-nodejs` → `nodejs`, `container-python` → `python`, `lambda-java` → `java`
      - Examples: `python-standards.md`, `nodejs-standards.md`, `java-standards.md`, `go-standards.md`, `dotnet-standards.md`
    - **New code**: Create feature-specific code directories following project structure
@@ -81,7 +93,7 @@
      - Modify relevant files
      - Update dependencies if needed
      - Add changelog entries for modifications following language standards
-   - Follow language-specific best practices and AWS service guidelines from `code-phases/{language}-standards.md`
+   - Follow language-specific best practices and AWS service guidelines from `code-phases/{language}-standards.mdc`
 
 5. **Generate Artifact Dependency Mapping** (MANDATORY for CICD workflows):
 
@@ -198,7 +210,7 @@
      - **Go**: Use `govulncheck` for dependency vulnerabilities
      - **Other languages**: Use appropriate security scanning tools
    - Run language-specific linting and formatting:
-     - Follow standards from `code-phases/{language}-standards.md`
+     - Follow standards from `code-phases/{language}-standards.mdc`
      - Run tool-specific linters (e.g., `flake8`, `eslint`, `golangci-lint`)
    - Store quality reports in `.code-docs/quality-reports/`
 

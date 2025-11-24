@@ -1,4 +1,4 @@
-# Code Generation Phase 4: Commit & Push Changes
+# Code Generation Phase 4: Commit and Push code Changes
 
 ## Purpose
 

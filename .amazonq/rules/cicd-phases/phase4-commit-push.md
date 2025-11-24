@@ -6,10 +6,10 @@ Safely commit and push generated/updated GitHub Actions workflow files after exp
 
 ## Related Files
 
-- See `phase3-review-confirm.md` for review procedures
-- See `rollback-procedures.md` for rollback procedures if needed
-- See `error-handling.md` for error scenarios
-- See `validation-checklist.md` for validation criteria
+- See `phase3-review-confirm.mdc` for review procedures
+- See `rollback-procedures.mdc` for rollback procedures if needed
+- See `error-handling.mdc` for error scenarios
+- See `validation-checklist.mdc` for validation criteria
 
 ## Preconditions
 
@@ -44,7 +44,7 @@ Safely commit and push generated/updated GitHub Actions workflow files after exp
        - Body (bullets):
          - Add Flake8/Bandit security scanning, tflint, Checkov security scanning
          - Validate Terraform config (`init -backend=false`, `validate`)
-         - Multi-environment deployment (dev/test/prod)
+         - Single environment deployment
          - Tag resources with `JiraId` where applicable
 
 5. **Push Changes**

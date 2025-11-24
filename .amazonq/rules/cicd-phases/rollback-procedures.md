@@ -1,40 +1,28 @@
-# CICD Workflow Generation Rollback Procedures
-
-## Purpose
-
-This document provides procedures for rolling back or undoing changes made during CICD workflow generation. Use these procedures when workflows need to be reverted or when starting over is required.
-
-## Related Files
-
-- See `error-handling.md` for error recovery procedures
-- See `session-continuity.md` for session management
-
----
-
 ## Rollback Scenarios
 
-### Scenario 1: Rollback Before Phase 4 (Commit)
+### Scenario 1: Rollback Before Commit
 
-**When to Use**: Workflows generated but not yet committed to repository.
+**When to Use**: Workflows generated but not yet committed (Phases 1-3).
 
 **Procedure**:
 
 1. **Delete generated workflow files**:
-   - Remove all files from `.github/workflows/` directory
-   - Or delete specific workflow files that need rollback
-2. **Reset state files** (optional):
-   - Delete `.cicd-docs/` directory to start completely fresh
-   - Or edit `cicd-state.md` to reset phase to `detect-plan`
-3. **Log rollback** in audit.md (if it exists):
+   ```bash
+   rm .github/workflows/ci-cd.yml
+   ```
+2. **Delete state files** (optional):
+   - Delete `.cicd-docs/` directory
+3. **Log rollback** in audit.md:
    ```markdown
    ## Rollback: Before Commit
 
    **Timestamp**: 2025-01-28T14:32:15Z
-   **Reason**: [User requested rollback / Error occurred]
-   **Files Removed**: [List of workflow files removed]
-   **State**: [Reset to Phase X / Deleted state files]
+   **Phase**: [Phase where rollback occurred]
+   **Reason**: [User requested rollback / Error discovered]
+   **Files Removed**: [List of files removed]
+   **State**: [Reset / Deleted]
    ```
-4. **Inform user**: "Rollback complete. Workflows removed. Ready to start fresh or modify approach."
+4. **Inform user**: "Rollback complete. Generated workflows removed. Ready to start fresh."
 
 ---
 
@@ -110,11 +98,10 @@ This document provides procedures for rolling back or undoing changes made durin
 **Procedure**:
 
 1. **Identify workflows to remove**:
-   - List specific workflow files (e.g., `python-dev.yml`, `terraform-test.yml`)
+   - List specific workflow files (e.g., `ci-cd.yml` or parts of it)
 2. **Delete specific files**:
    ```bash
-   rm .github/workflows/python-dev.yml
-   rm .github/workflows/terraform-test.yml
+   rm .github/workflows/ci-cd.yml
    ```
 3. **Update state file**:
    - Remove entries from `generated_files` in `cicd-state.md`
@@ -169,9 +156,8 @@ To minimize need for rollbacks:
 
 1. **Validate workflows** before committing (Phase 2 linting)
 2. **Review thoroughly** in Phase 3 before approval
-3. **Test workflows** in dev environment first
-4. **Use regeneration** for major changes instead of manual edits
-5. **Document decisions** in plan files and audit.md
+3. **Use regeneration** for major changes instead of manual edits
+4. **Document decisions** in plan files and audit.md
 
 ---
 

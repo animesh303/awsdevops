@@ -1,4 +1,4 @@
-# CICD State Tracking
+# CICD generation State Tracking
 
 ## Current Phase
 
@@ -27,12 +27,7 @@
 
 **generated_files**:
 
-- .github/workflows/python-dev.yml (Environment-specific: Dev)
-- .github/workflows/python-test.yml (Environment-specific: Test)
-- .github/workflows/python-prd.yml (Environment-specific: Prod)
-- .github/workflows/terraform-dev.yml (Environment-specific: Dev)
-- .github/workflows/terraform-test.yml (Environment-specific: Test)
-- .github/workflows/terraform-prd.yml (Environment-specific: Prod)
+- .github/workflows/ci-cd.yml (Single production workflow containing all code types, triggered by main branch)
 
 ## Session Information
 

@@ -1,2 +1,0 @@
-# AWS Lambda Python dependencies
-# No external dependencies required for this Hello World demo

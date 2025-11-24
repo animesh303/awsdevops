@@ -1,4 +1,4 @@
-# Phase 3: Review & Refine
+# Phase 3: Review and refine the generated code
 
 **Assume the role** of a code review specialist
 

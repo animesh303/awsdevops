@@ -1,4 +1,4 @@
-# Phase 1: Select Requirements
+# Phase 1: Selecting JIRA Requirement for code generation
 
 **Assume the role** of a requirements analysis specialist
 
@@ -51,7 +51,7 @@
    - Present options to user if unclear: "Based on requirements, I recommend [TOOL]. Should I proceed with [TOOL] or would you prefer [ALTERNATIVE]?"
    - Store selected IAC tool in analysis document: `.code-docs/requirements/{TICKET-NUMBER}-analysis.md`
    - Format: `IAC Tool: {selected-tool}` (e.g., "terraform", "cdk", "cloudformation", "pulumi")
-   - **Validation**: Check if `code-phases/{iac-tool}-standards.md` exists. If not, warn user that standards file is missing and proceed
+   - **Validation**: Check if `code-phases/{iac-tool}-standards.mdc` exists. If not, warn user that standards file is missing and proceed
 
 7. **Select Application Runtime/Language**: Determine application runtime and language:
 
@@ -64,7 +64,7 @@
    - Store selected runtime/language in analysis document
    - Format: `Application Runtime: {runtime-type}` (e.g., "lambda-python", "lambda-nodejs", "container-python", "lambda-java")
    - Extract language name for standards file mapping: `lambda-python` → `python`, `lambda-nodejs` → `nodejs`, etc.
-   - **Validation**: Check if `code-phases/{language}-standards.md` exists. If not, warn user that standards file is missing and proceed
+   - **Validation**: Check if `code-phases/{language}-standards.mdc` exists. If not, warn user that standards file is missing and proceed
    - Update analysis document: `.code-docs/requirements/{TICKET-NUMBER}-analysis.md`
 
 8. **Log and Proceed**:

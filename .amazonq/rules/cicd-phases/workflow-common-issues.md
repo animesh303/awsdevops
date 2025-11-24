@@ -1,72 +1,43 @@
-# GitHub Actions Workflow Common Issues and Solutions
+## Issue 1: hashFiles() Used at Job Level (CRITICAL ERROR)
 
-## Purpose
-
-This document provides solutions to common issues encountered when generating GitHub Actions workflows. Reference this document when troubleshooting workflow generation errors.
-
-## Related Files
-
-- See `phase2-generate-workflow.md` for workflow generation steps
-- See `workflow-dependency-handling.md` for dependency patterns
-
----
-
-## Issue 1: `hashFiles()` Not Available at Job Level
-
-**Problem**: Attempting to use `hashFiles()` in a job-level `if` condition causes an error because `hashFiles()` is only available in step-level contexts.
+**Problem**: `hashFiles()` function is used at job level (`jobs.<job>.if`), which is NOT supported by GitHub Actions.
 
 **Error Example**:
 
 ```yaml
 jobs:
-  tests:
-    if: ${{ hashFiles('tests/**') != '' }} # ❌ Error: hashFiles() not available
+  python-test:
+    if: ${{ hashFiles('tests/**') != '' }} # ❌ ERROR: hashFiles() not available at job level
     runs-on: ubuntu-latest
     steps:
       - run: pytest
 ```
 
-**Solution**: Move the `hashFiles()` check to step-level `if` conditions:
+**Error Message**: `Unrecognized function: 'hashFiles'. Located at position 1 within expression: hashFiles('tests/**') != ''`
+
+**Solution**: Move `hashFiles()` condition to step level:
 
 ```yaml
 jobs:
-  tests:
+  python-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      - name: Install test dependencies
+        if: ${{ hashFiles('tests/**') != '' }} # ✓ Correct - hashFiles at step level
+        run: pip install pytest
       - name: Run tests
-        if: ${{ hashFiles('tests/**') != '' }}
-        run: pytest
+        if: ${{ hashFiles('tests/**') != '' }} # ✓ Correct - hashFiles at step level
+        run: pytest tests/
 ```
 
-**Alternative Solution**: If you need to conditionally skip the entire job, use a separate job to check file existence:
+**Key Points**:
 
-```yaml
-jobs:
-  check-tests:
-    runs-on: ubuntu-latest
-    outputs:
-      has-tests: ${{ steps.check.outputs.exists }}
-    steps:
-      - uses: actions/checkout@v4
-      - id: check
-        run: |
-          if [ -n "$(find tests -type f 2>/dev/null)" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
+- `hashFiles()` is ONLY available in step-level `if` conditions (`jobs.<job>.steps[*].if`)
+- `hashFiles()` is NOT available at job level (`jobs.<job>.if`)
+- Always apply conditions to individual steps, not the entire job
 
-  tests:
-    needs: check-tests
-    if: ${{ needs.check-tests.outputs.has-tests == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pytest
-```
+**Validation**: Always scan generated workflows for job-level `if:` fields containing `hashFiles` before proceeding.
 
 ---
 
@@ -88,18 +59,13 @@ if: ${{ hashFiles('tests/**') != '' }} # ✓ Correct
 
 ---
 
-## Issue 3: Missing Checkout Step in `workflow_run` Triggered Jobs
+## Issue 3: Missing Checkout Step in Jobs
 
-**Problem**: Jobs triggered by `workflow_run` events don't automatically checkout code, causing "file not found" errors.
+**Problem**: Jobs don't automatically checkout code, causing "file not found" errors.
 
 **Error Example**:
 
 ```yaml
-on:
-  workflow_run:
-    workflows: ["Upstream Workflow"]
-    types: [completed]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -107,7 +73,7 @@ jobs:
       - run: terraform apply # ❌ Error: No code checked out
 ```
 
-**Solution**: Always include checkout as the first step with the `ref` parameter:
+**Solution**: Always include checkout as the first step:
 
 ```yaml
 jobs:
@@ -115,16 +81,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
       - run: terraform apply # ✓ Correct
 ```
 
 ---
 
-## Issue 4: Incorrect Artifact Download for Cross-Workflow Dependencies
+## Issue 4: Incorrect Artifact Download for Job Dependencies
 
-**Problem**: Attempting to download artifacts from upstream workflows without proper authentication or run-id.
+**Problem**: Attempting to download artifacts from upstream jobs without proper configuration.
 
 **Error Example**:
 
@@ -132,20 +96,21 @@ jobs:
 - uses: actions/download-artifact@v4
   with:
     name: artifact-name
-    # ❌ Missing run-id and github-token for cross-workflow downloads
+    # ❌ Missing path or incorrect artifact name
 ```
 
-**Solution**: For `workflow_run` triggers, always include `run-id` and `github-token`:
+**Solution**: For jobs within the same workflow, use simple artifact download:
 
 ```yaml
 - uses: actions/download-artifact@v4
   with:
     name: artifact-name
-    run-id: ${{ github.event.workflow_run.id }}
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    path: ./artifacts
 ```
 
-**See Also**: `workflow-dependency-handling.md` for comprehensive dependency patterns
+**Note**: For single production workflow, all artifact passing happens within the same workflow. No cross-workflow downloads needed.
+
+**See Also**: `workflow-dependency-handling.mdc` for comprehensive dependency patterns
 
 ---
 
@@ -206,7 +171,7 @@ jobs:
 - `jobs`: Job definitions
 - Each job must have `runs-on`
 
-**Solution**: Ensure all required fields are present. See `phase2-generate-workflow.md` for workflow structure requirements.
+**Solution**: Ensure all required fields are present. See `phase2-generate-workflow.mdc` for workflow structure requirements.
 
 ---
 
@@ -214,27 +179,30 @@ jobs:
 
 **Problem**: Using incorrect environment names causes deployment failures.
 
-**Required Environment Names**:
+**Required Environment Name**:
 
-- `dev` - Development environment
-- `test` - Test environment
-- `prod` - Production environment
+- `production` - Production environment (single environment only)
 
-**Solution**: Always use exact environment names: `dev`, `test`, `prod` (lowercase, no variations).
+**Solution**: Always use exact environment name: `production` (lowercase, no variations). All deploy jobs in the single production workflow use `environment: production`.
 
 ---
 
 ## Issue 9: Invalid Workflow Trigger Syntax
 
-**Problem**: Incorrect `workflow_run` trigger syntax causes workflows not to trigger.
+**Problem**: Incorrect workflow trigger syntax causes workflows not to trigger.
+
+**Required Trigger**:
+
+- `push` to `main` branch only
+- `workflow_dispatch` for manual execution
 
 **Common Errors**:
 
-- Missing `types: [completed]`
-- Incorrect workflow name (must match exact workflow name)
-- Missing `branches` filter for prod workflows
+- Using other branch names (should be `main` only)
+- Missing `workflow_dispatch` for manual triggers
+- Using `workflow_run` triggers (not needed for single workflow)
 
-**Solution**: Follow exact syntax from `phase2-generate-workflow.md` workflow structure examples.
+**Solution**: Follow exact syntax from `phase2-generate-workflow.mdc` workflow structure examples. Single production workflow triggers on `main` branch push only.
 
 ---
 
@@ -247,4 +215,4 @@ jobs:
 - Verify artifact upload path matches download path
 - Check artifact name matches exactly (case-sensitive)
 - Ensure artifact was uploaded before download attempt
-- See `workflow-dependency-handling.md` for artifact passing patterns
+- See `workflow-dependency-handling.mdc` for artifact passing patterns

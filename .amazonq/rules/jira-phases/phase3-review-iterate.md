@@ -27,39 +27,58 @@
        - Allow user to proceed or pause
      - Ask them to specify what needs to be modified
      - Update the requirements document based on user feedback
+     - **MANDATORY: Update Confluence Page**: After updating requirements document, update the Confluence page:
+       - Get Confluence page ID from `.jira-docs/jira-state.md` or ticket file
+       - Read updated requirements document from `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
+       - Use `@atlassian-mcp-server/updateConfluencePage` to update the page with new content
+       - Log Confluence update in `.jira-docs/audit.md` with timestamp
      - Log each iteration in `.jira-docs/audit.md` with timestamp
    - Repeat confirmation until user approves or iteration limit reached
 
-3. **Update JIRA Ticket Description**: Add/update requirements in JIRA ticket:
+3. **Add Confluence Page Link to JIRA Ticket**: Add a comment to the JIRA ticket with the Confluence page link:
 
    - **Use Ticket Number**: Use the ticket number determined in step 1
-   - Read the current JIRA ticket details using `@atlassian-mcp-server/getJiraIssue` for ticket {TICKET-NUMBER}
+   - **Get Confluence Page Information**: Retrieve Confluence page details from:
+     - `.jira-docs/jira-state.md` (Confluence Page URL, Page ID)
+     - Or `.jira-docs/tickets/ticket-{TICKET-NUMBER}.md` (if stored there)
+   - **Error Handling**: If Confluence page information not found:
+     - Log warning in `.jira-docs/audit.md` with timestamp
+     - Inform user: "Confluence page information not found. Please ensure Phase 2 completed successfully and Confluence page was created."
+     - **DO NOT PROCEED** to comment if Confluence page URL is not available
+   - **Read Current Ticket**: Read the current JIRA ticket details using `@atlassian-mcp-server/getJiraIssue` for ticket {TICKET-NUMBER}
    - **Error Handling**: If ticket fetch fails:
      - Log error in `.jira-docs/audit.md` with timestamp
      - Inform user: "Unable to fetch ticket details. Please check ticket permissions and try again."
      - Continue with workflow (requirements document is still valid)
-   - Read the final requirements document from `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`
-   - **Error Handling**: If requirements file not found:
-     - Log error in `.jira-docs/audit.md`
-     - Inform user: "Requirements document not found. Please regenerate requirements."
-     - **DO NOT PROCEED** until requirements document exists
-   - **Format Requirements for JIRA**:
-     - Convert markdown headers to JIRA headers: `#` → `h1.`, `##` → `h2.`, `###` → `h3.`
-     - Convert markdown lists to JIRA lists: `-` → `*`, numbered lists remain numbered
-     - Convert markdown code blocks to JIRA code blocks: ` ``` ` → `{code}...{code}`
-     - Convert markdown bold `**text**` to JIRA bold `*text*`
-     - Convert markdown italic `*text*` to JIRA italic `_text_`
-     - Preserve line breaks and structure
-   - Update the JIRA ticket description using `@atlassian-mcp-server/editJiraIssue`:
-     - **Append** the requirements section to existing description (preserve original content)
-     - Add a clear separator: `----`
-     - Include header: `h2. Technical Requirements Specification`
-     - Include the full formatted requirements document
-     - If description is too long, include a summary with note: "Full requirements available in repository at `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md`"
-   - **Error Handling**: If JIRA update fails:
+   - **Add Comment to JIRA Ticket**: Add a comment with Confluence page link using `@atlassian-mcp-server/addCommentToJiraIssue`:
+
+     - `cloudId`: Get from `@atlassian-mcp-server/getAccessibleAtlassianResources` if needed
+     - `issueIdOrKey`: {TICKET-NUMBER}
+     - `commentBody`: Use markdown format:
+
+       ```
+       Technical Requirements Specification has been generated and published to Confluence.
+
+       **Confluence Page**: [Technical Requirements: {TICKET-NUMBER} - {TICKET-TITLE}]({CONFLUENCE_PAGE_URL})
+
+       The requirements document includes:
+       * Functional Requirements
+       * Non-Functional Requirements
+       * Technical Specifications
+       * Architecture Diagram
+       * Acceptance Criteria
+       * Dependencies and Risks
+
+       Please review the requirements in Confluence and provide feedback if needed.
+       ```
+
+     - Replace placeholders: {TICKET-NUMBER}, {TICKET-TITLE}, {CONFLUENCE_PAGE_URL} with actual values
+
+   - **Error Handling**: If comment addition fails:
      - Log error in `.jira-docs/audit.md` with timestamp and error details
-     - Inform user: "Unable to update JIRA ticket description. Error: [error message]. Requirements document is saved locally."
-     - Continue with workflow (don't block on JIRA update failure)
+     - Inform user: "Unable to add comment to JIRA ticket. Error: [error message]. Confluence page is available at: {CONFLUENCE_PAGE_URL}"
+     - Continue with workflow (don't block on comment failure)
+   - **Log Comment Status**: Log comment addition status in `.jira-docs/audit.md` with timestamp
 
 4. **Transition JIRA Ticket to "In Progress"**: Update ticket status:
 
@@ -84,7 +103,7 @@
 5. **Finalize and Log**:
    - Mark requirements as final and approved
    - Log final approval with timestamp in `.jira-docs/audit.md`
-   - Log JIRA ticket update and status transition in `.jira-docs/audit.md`
+   - Log JIRA ticket comment with Confluence link and status transition in `.jira-docs/audit.md`
    - **Update State (Graceful)**: Try to update Phase 3 complete in `jira-state.md`. If update fails, continue - artifacts are source of truth.
    - **Git Reminder**: Remind user to commit Phase 3 artifacts to git: "Please commit the final requirements and audit logs to git: `.jira-docs/requirements/`, `.jira-docs/audit.md`, and `.jira-docs/jira-state.md`"
-   - Provide summary of final requirements document and JIRA ticket updates
+   - Provide summary of Confluence page link added to JIRA ticket comment and ticket status updates

@@ -1,8 +1,9 @@
+
 # Python CI/CD Workflow Standards
 
 ## Purpose
 
-Define CI/CD workflow patterns and standards for Python code in unified workflow files.
+Define CI/CD workflow patterns and standards for Python code in single production workflow (triggered by main branch).
 
 ## CI Jobs
 
@@ -46,101 +47,99 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
 - **Condition**: Only run if `tests/` directory exists
 - **Matrix**: Python versions (3.10, 3.11, 3.12)
 - **Continue on Error**: `continue-on-error: true` (job level) - allows workflow to continue even if tests fail
+- **CRITICAL - hashFiles() Usage**:
+  - **DO NOT** use `hashFiles()` at job level (`jobs.<job>.if`) - this is INVALID
+  - **MUST** use `hashFiles()` at step level (`jobs.<job>.steps[*].if`) only
+  - Apply condition to test-related steps (install test dependencies, run tests)
 - **Steps**:
   - Setup Python with matrix version
   - Cache pip dependencies
   - Install dependencies including test requirements
-  - Run pytest with coverage:
+  - Install test dependencies (with step-level condition):
+    ```yaml
+    - name: Install test dependencies
+      if: ${{ hashFiles('tests/**') != '' }}
+      run: |
+        pip install pytest pytest-cov
+    ```
+  - Run pytest with coverage (with step-level condition):
     ```yaml
     - name: Run tests
+      if: ${{ hashFiles('tests/**') != '' }}
       run: |
         pytest tests/ --cov=. --cov-report=xml --cov-report=html || true  # Continue even if tests fail
     ```
   - Upload coverage artifacts (coverage.xml, htmlcov/) - use `if: always()` to upload even if tests fail
 
-## Deployment Jobs
+## Build Job
 
-**Note**: Each environment has its own workflow file. The deployment job below applies to the corresponding environment workflow.
+**CRITICAL - Job Structure Decision**: When Terraform depends on Python Lambda artifacts, choose ONE of these patterns:
 
-### Deploy to Dev (in `python-dev.yml`)
+### Option 1: MOST PREFERRED - Combined Build and Deploy Job
 
-- **Name**: `deploy-dev`
-- **Needs**: All CI jobs (lint, security, tests)
-- **Condition**: `if: always()` - runs even if CI jobs fail (since CI jobs use `continue-on-error: true`)
-- **Environment**: `dev`
-- **Workflow Trigger**: `on.push.branches: [develop]`
+**For tightly coupled dependencies where Terraform manages Lambda and no separate Python deploy is needed:**
+
+- **No separate `python-build` job needed**
+- Python build steps are included in `terraform-deploy` job
+- Build happens in same runner as Terraform deploy
+- **Benefits**: No artifact passing needed, simplest workflow, fewer jobs
+- **See**: `workflow-dependency-handling.mdc` for complete combined job pattern
+
+### Option 2: Separate Build Job
+
+- **Name**: `python-build`
+- **Needs**: All CI jobs (`python-lint`, `python-security`, `python-test`)
 - **Steps**:
-  - Configure AWS credentials via OIDC (if needed)
-  - Download build artifacts if needed
+  - Setup Python
+  - Cache pip dependencies
+  - Install dependencies
   - **Build Lambda deployment package** (if applicable):
-    ```yaml
-    - name: Build Lambda package
-      run: |
-        zip -r lambda-package.zip . -x "*.git*" "*.md" "tests/*"
-    ```
-  - Deploy to development environment
-  - Use environment-specific secrets and variables
-  - **Upload artifacts for downstream workflows** (if this Python code is a dependency):
-    ```yaml
-    - name: Upload Lambda package artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: lambda-package-dev
-        path: lambda-package.zip
-        retention-days: 1
-    ```
-    - Or upload to S3/container registry for cross-workflow access
-    - Export artifact location (path/URL) as workflow output or environment variable
+    - **PREFERRED - Local Build Placement**: If Terraform manages the Lambda function, build the package directly where Terraform expects it:
+      ```yaml
+      - name: Build Lambda package for Terraform
+        run: |
+          mkdir -p ./iac/terraform
+          zip -r ./iac/terraform/lambda_function.zip . -x "*.git*" "*.md" "tests/*" "*.tf*" "iac/**"
+          echo "✓ Lambda package built at: ./iac/terraform/lambda_function.zip"
+      ```
+      - **Benefits**: Terraform deploys Lambda source directly, no artifact upload/download needed, simpler workflow
+      - **Note**: Terraform's `source_code_hash` attribute automatically detects changes and updates Lambda function code
+      - **Note**: This still requires artifact passing between jobs. For simplest solution, use Option 1 (Combined Job)
+    - **ALTERNATIVE - Artifact Upload**: If local build placement is not feasible (e.g., multiple consumers), use artifact upload:
+      ```yaml
+      - name: Build Lambda package
+        run: |
+          zip -r lambda-package.zip . -x "*.git*" "*.md" "tests/*"
+      - name: Upload Lambda package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda-package.zip
+          retention-days: 1
+      ```
 
-### Deploy to Test (in `python-test.yml`)
+## Deployment Job
 
-- **Name**: `deploy-test`
-- **Needs**: All CI jobs (within the test workflow: lint, security, tests)
+- **Name**: `python-deploy`
+- **Needs**:
+  - Build job (`python-build`) and all CI jobs
+  - **CRITICAL - Infrastructure Dependencies**: If Python deploy needs infrastructure created by other code types
+    - Example: Python deploy updates Lambda function that Terraform creates → `python-deploy` needs `terraform-deploy`
+    - Wait for upstream **deploy jobs** that create required infrastructure
+    - Example: `needs: [python-build, terraform-deploy]`
 - **Condition**: `if: always()` - runs even if CI jobs fail (since CI jobs use `continue-on-error: true`)
-- **Environment**: `test`
-- **Workflow Trigger**: `push` to `main` branch
+- **Environment**: `production`
+- **Workflow Trigger**: `push` to `main` branch only
+- **Infrastructure Dependency Detection**:
+  - **MANDATORY**: Check if Python deploy job updates/creates resources that other code types (e.g., Terraform) create
+  - If deploy uses `aws lambda update-function-code` or `aws lambda create-function` for functions created by Terraform → infrastructure dependency exists
+  - Load artifact-mappings.json: If `lambda_functions` array exists AND Terraform creates those functions → infrastructure dependency
 - **Steps**:
-  - Checkout code (standard checkout for push trigger)
+  - Checkout code
   - Configure AWS credentials via OIDC (if needed)
-  - Run CI jobs (lint, security, tests)
-  - **Build Lambda deployment package** (if applicable)
-  - Download artifacts if needed
-  - Deploy to test environment
-  - Use environment-specific secrets and variables
-  - **Upload artifacts for downstream workflows** (if this Python code is a dependency):
-    ```yaml
-    - name: Upload Lambda package artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: lambda-package-test
-        path: lambda-package.zip
-        retention-days: 1
-    ```
-
-### Deploy to Prod (in `python-prd.yml`)
-
-- **Name**: `deploy-prod`
-- **Needs**: All CI jobs (within the prod workflow: lint, security, tests)
-- **Condition**: `if: ${{ github.event.workflow_run.conclusion == 'success' }}` - runs if test workflow succeeded (CI jobs use `continue-on-error: true` so they won't block deployment)
-- **Environment**: `prod`
-- **Workflow Trigger**: `workflow_run` on successful completion of `python-test.yml` with `branches: [main]`
-- **Steps**:
-  - Checkout code: `ref: ${{ github.event.workflow_run.head_branch }}` (required for workflow_run triggers)
-  - Configure AWS credentials via OIDC (if needed)
-  - Run CI jobs (lint, security, tests)
-  - **Build Lambda deployment package** (if applicable)
-  - Download artifacts if needed
+  - Download build artifacts if needed (from build job)
   - Deploy to production environment
-  - Use environment-specific secrets and variables
-  - **Upload artifacts for downstream workflows** (if this Python code is a dependency):
-    ```yaml
-    - name: Upload Lambda package artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: lambda-package-prod
-        path: lambda-package.zip
-        retention-days: 1
-    ```
+  - Use production environment secrets and variables
   - Protected with GitHub environment protection rules
 
 ## Permissions
@@ -153,16 +152,27 @@ Define CI/CD workflow patterns and standards for Python code in unified workflow
 - Cache pip dependencies for faster builds
 - Use matrix strategy for multiple Python versions
 - Conditional test execution based on `tests/` directory existence
-- Artifact upload/download for deployment jobs
-- Environment-specific configuration via GitHub environments
+- Artifact upload in build job, download in deploy job (within same workflow)
+- Production environment configuration via GitHub environments
 - **Non-blocking CI jobs**: All CI jobs (lint, security, tests) use `continue-on-error: true` to allow workflow to proceed even if CI checks fail
-- **Deployment always runs**: Deployment jobs use `if: always()` condition to ensure they run regardless of CI job outcomes
+- **Deployment always runs**: Deployment job uses `if: always()` condition to ensure it runs regardless of CI job outcomes
 
 ## Dependency Handling
 
 **When Python code is a dependency for other code types** (e.g., Terraform needs Lambda package):
 
-- **Build and Package**: Create Lambda deployment package (zip file) in deployment jobs
-- **Upload Artifacts**: Upload packages using `actions/upload-artifact@v4` with environment-specific names
-- **Artifact Naming**: Use standardized naming convention: `{artifact-type}-{environment}` (e.g., `lambda-package-dev`, `lambda-package-test`, `lambda-package-prod`)
-- **Export Information**: Make artifact paths/URLs available to downstream workflows via workflow outputs or environment variables
+- **PREFERRED - Local Build Placement**: If Terraform manages the Lambda function, build the package directly where Terraform expects it:
+  - **Build Location**: Build Lambda package directly in Terraform directory (e.g., `iac/terraform/lambda_function.zip`)
+  - **Benefits**:
+    - Terraform deploys Lambda source directly via `terraform apply`
+    - No artifact upload/download needed
+    - Simpler workflow with fewer steps
+    - Terraform's `source_code_hash` automatically detects changes and updates Lambda function code
+  - **Implementation**: Build job creates package in Terraform directory, Terraform deploy job uses it directly
+  - **No Separate Deploy Job Needed**: When Terraform manages Lambda, no separate `python-deploy` job is needed - Terraform handles both infrastructure and Lambda source code deployment
+- **ALTERNATIVE - Artifact Upload/Download**: If local build placement is not feasible (e.g., multiple consumers or complex dependency chains):
+  - **Build and Package**: Create Lambda deployment package (zip file) in build job
+  - **Upload Artifacts**: Upload packages using `actions/upload-artifact@v4` in build job
+  - **Artifact Naming**: Use simple, consistent naming: `lambda-package` (no environment suffix needed for single workflow)
+  - **Download in Downstream Jobs**: Downstream deploy jobs (e.g., `terraform-deploy`) download artifacts from build job using `actions/download-artifact@v4`
+  - **Artifact Passing**: All artifact passing happens within the same workflow using GitHub Actions artifacts
