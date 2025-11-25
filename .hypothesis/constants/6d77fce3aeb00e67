@@ -1,0 +1,4 @@
+# file: /Users/animeshnaskar/Projects/Accenture/genai-devops/lambda/iam_scanner.py
+# hypothesis_version: 6.148.2
+
+['Arn', 'ClientError', 'Code', 'CreateDate', 'Error', 'Message', 'PasswordLastUsed', 'RequestId', 'ResponseMetadata', 'Unknown', 'Unknown error', 'UserId', 'UserName', 'Users', 'arn', 'create_date', 'error_code', 'error_type', 'iam', 'list_users', 'password_last_used', 'request_id', 'total_users', 'user_id', 'user_name']

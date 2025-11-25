@@ -1,0 +1,4 @@
+# file: /Users/animeshnaskar/Projects/Accenture/genai-devops/lambda/metrics_emitter.py
+# hypothesis_version: 6.148.2
+
+[0.0, 1.0, 1000, 'ClientError', 'Code', 'Count', 'Duration', 'Error', 'Errors', 'IAMUserMonitor', 'Message', 'MetricName', 'Milliseconds', 'None', 'RecordsWritten', 'RequestId', 'ResponseMetadata', 'Success', 'Unit', 'Unknown', 'Unknown error', 'UsersScanned', 'Value', 'cloudwatch', 'duration_seconds', 'error_code', 'error_type', 'errors', 'metrics', 'metrics_count', 'records_written', 'request_id', 'success', 'total_users']

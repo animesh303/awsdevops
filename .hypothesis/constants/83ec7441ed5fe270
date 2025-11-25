@@ -1,0 +1,4 @@
+# file: /Users/animeshnaskar/Projects/Accenture/genai-devops/lambda/dynamodb_writer.py
+# hypothesis_version: 6.148.2
+
+['ClientError', 'Code', 'DYNAMODB_TABLE_NAME', 'Error', 'Item', 'Message', 'N', 'PutRequest', 'RequestId', 'ResponseMetadata', 'S', 'Unknown', 'Unknown error', 'UnprocessedItems', 'affected_users', 'arn', 'batch_size', 'batch_start_index', 'create_date', 'dynamodb', 'error_code', 'error_type', 'errors', 'failed_users', 'password_last_used', 'records_written', 'request_id', 'retention_days', 'scan_timestamp', 'table_name', 'total_users', 'ttl', 'unprocessed_count', 'user_id', 'user_name']
