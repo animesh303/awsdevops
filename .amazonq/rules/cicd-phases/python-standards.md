@@ -1,4 +1,3 @@
-
 # Python CI/CD Workflow Standards
 
 ## Purpose
@@ -83,7 +82,7 @@ Define CI/CD workflow patterns and standards for Python code in single productio
 - Python build steps are included in `terraform-deploy` job
 - Build happens in same runner as Terraform deploy
 - **Benefits**: No artifact passing needed, simplest workflow, fewer jobs
-- **See**: `workflow-dependency-handling.mdc` for complete combined job pattern
+- **See**: `workflow-dependency-handling.md` for complete combined job pattern
 
 ### Option 2: Separate Build Job
 

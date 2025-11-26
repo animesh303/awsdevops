@@ -8,7 +8,7 @@ Ensure CICD GitHub workflow generation can resume seamlessly if interrupted or a
 
 - Preferred (project-scoped): `.cicd-docs/cicd-state.md` and `.cicd-docs/audit.md`
   - Tracks: current phase, detected code types, existing workflows, generated files (single production workflow: `ci-cd.yml`), decisions/approvals with timestamps
-  - Legacy fallback: `.amazonq/rules/cicd-phases/cicd-state.mdc` (read/write only if project-scoped files are absent)
+  - Legacy fallback: `.amazonq/rules/cicd-phases/cicd-state.md` (read/write only if project-scoped files are absent)
 
 ## Detect Existing Session
 
@@ -23,7 +23,7 @@ Ensure CICD GitHub workflow generation can resume seamlessly if interrupted or a
      - Proceed as new session (skip existing session detection)
 
 2. **Normal Session Detection**:
-   - Check for `.cicd-docs/cicd-state.md` (preferred). If not found, check `.amazonq/rules/cicd-phases/cicd-state.mdc` (legacy).
+   - Check for `.cicd-docs/cicd-state.md` (preferred). If not found, check `.amazonq/rules/cicd-phases/cicd-state.md` (legacy).
    - If present, read:
      - `current_phase` (detect-plan | generate-workflow | review-confirm | complete)
      - `detected_code_types` (list of all detected code types: python, terraform, javascript, java, go, docker, kubernetes, etc.)

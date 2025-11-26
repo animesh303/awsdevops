@@ -1,4 +1,3 @@
-
 # Terraform CI/CD Workflow Standards
 
 ## Purpose
@@ -105,20 +104,20 @@ Define CI/CD workflow patterns and standards for Terraform code in single produc
 **For tightly coupled dependencies where Terraform manages Lambda and no separate Python deploy is needed:**
 
 - **Name**: `terraform-deploy` (combines Python build + Terraform deploy)
-- **Needs**: 
+- **Needs**:
   - Python CI jobs: `[python-lint, python-security, python-test]`
   - Terraform CI jobs: `[terraform-lint, terraform-security, terraform-validate]`
   - Example: `needs: [python-lint, python-security, python-test, terraform-security, terraform-validate]`
 - **Environment**: `production`
-- **Steps**: 
+- **Steps**:
   1. Checkout code
   2. **Python Build Steps**: Set up Python, install dependencies, build Lambda package directly in `iac/terraform/lambda_function.zip`
   3. **Terraform Deploy Steps**: Verify artifact exists, configure Terraform, init/plan/apply
-- **Benefits**: 
+- **Benefits**:
   - No artifact passing needed (same runner)
   - Simplest workflow (fewer jobs)
   - No upload/download overhead
-- **See**: `workflow-dependency-handling.mdc` for complete combined job pattern
+- **See**: `workflow-dependency-handling.md` for complete combined job pattern
 
 #### Option 2: Separate Jobs with Local Build Placement
 
@@ -138,63 +137,64 @@ Define CI/CD workflow patterns and standards for Terraform code in single produc
   - These steps ensure artifacts are available when Terraform runs
 
 **For Option 1 (Combined Job) - Steps**:
-  1. Checkout code
-  2. **Python Build Steps** (build artifact where Terraform expects it):
-     - Set up Python
-     - Install dependencies
-     - Build Lambda package in `iac/terraform/lambda_function.zip`
-  3. **Terraform Deploy Steps** (use artifact from same runner):
-     - Verify artifact exists
-     - Configure AWS credentials
-     - Configure Terraform Cloud (if applicable)
-     - Terraform init/plan/apply
+
+1. Checkout code
+2. **Python Build Steps** (build artifact where Terraform expects it):
+   - Set up Python
+   - Install dependencies
+   - Build Lambda package in `iac/terraform/lambda_function.zip`
+3. **Terraform Deploy Steps** (use artifact from same runner):
+   - Verify artifact exists
+   - Configure AWS credentials
+   - Configure Terraform Cloud (if applicable)
+   - Terraform init/plan/apply
 
 **For Option 2 (Separate Jobs) - Steps** (CRITICAL ORDER - ALL STEPS MANDATORY IF DEPENDENCIES DETECTED):
 
-  1. **CRITICAL - Checkout code**: Standard checkout (unified workflow uses push trigger):
-     ```yaml
-     - uses: actions/checkout@v4
-     ```
-  2. **Dependency Handling Steps** (MANDATORY if Terraform depends on other code types):
+1. **CRITICAL - Checkout code**: Standard checkout (unified workflow uses push trigger):
+   ```yaml
+   - uses: actions/checkout@v4
+   ```
+2. **Dependency Handling Steps** (MANDATORY if Terraform depends on other code types):
 
-     - **CRITICAL**: Follow the dependency handling pattern from `workflow-dependency-handling.mdc`
-     - **PREFERRED - Local Build Placement**: For Lambda functions and similar artifacts, the PREFERRED approach is to build artifacts directly in the location where Terraform expects them, eliminating the need for artifact upload/download:
-       - **Python Lambda Example**: Build Lambda package directly in Terraform directory (e.g., `iac/terraform/lambda_function.zip`)
-       - **Benefits**: Simpler workflow, no artifact upload/download, fewer path issues, Terraform deploys source directly
-       - **Implementation**: Upstream build job (e.g., `python-build`) builds artifact directly in Terraform directory, Terraform deploy job uses it directly
-       - **See**: `workflow-dependency-handling.mdc` for local build placement patterns
-     - **ALTERNATIVE - Artifact Upload/Download**: If local build placement is not feasible, use artifact upload/download:
-       - **PREFERRED - Use Artifact Mapping**: If `.code-docs/artifact-mappings.json` exists:
-         - Read mapping file to get exact artifact names (`artifact_name`) and destination paths (`artifact_destination_path`)
-         - Use these values in dependency handling steps
-       - **FALLBACK - Manual Detection**: If mapping file does not exist, use code analysis to determine artifact names and paths
+   - **CRITICAL**: Follow the dependency handling pattern from `workflow-dependency-handling.md`
+   - **PREFERRED - Local Build Placement**: For Lambda functions and similar artifacts, the PREFERRED approach is to build artifacts directly in the location where Terraform expects them, eliminating the need for artifact upload/download:
+     - **Python Lambda Example**: Build Lambda package directly in Terraform directory (e.g., `iac/terraform/lambda_function.zip`)
+     - **Benefits**: Simpler workflow, no artifact upload/download, fewer path issues, Terraform deploys source directly
+     - **Implementation**: Upstream build job (e.g., `python-build`) builds artifact directly in Terraform directory, Terraform deploy job uses it directly
+     - **See**: `workflow-dependency-handling.md` for local build placement patterns
+   - **ALTERNATIVE - Artifact Upload/Download**: If local build placement is not feasible, use artifact upload/download:
+     - **PREFERRED - Use Artifact Mapping**: If `.code-docs/artifact-mappings.json` exists:
+       - Read mapping file to get exact artifact names (`artifact_name`) and destination paths (`artifact_destination_path`)
+       - Use these values in dependency handling steps
+     - **FALLBACK - Manual Detection**: If mapping file does not exist, use code analysis to determine artifact names and paths
 
-     **Required Steps** (see `workflow-dependency-handling.mdc` for complete examples):
+   **Required Steps** (see `workflow-dependency-handling.md` for complete examples):
 
-     **For Local Build Placement (PREFERRED)**:
+   **For Local Build Placement (PREFERRED)**:
 
-     1. Upstream build job builds artifact directly in Terraform directory (e.g., `iac/terraform/lambda_function.zip`)
-     2. Verify artifact exists before Terraform operations
-     3. Pass artifact paths to Terraform via environment variables (if needed)
+   1. Upstream build job builds artifact directly in Terraform directory (e.g., `iac/terraform/lambda_function.zip`)
+   2. Verify artifact exists before Terraform operations
+   3. Pass artifact paths to Terraform via environment variables (if needed)
 
-     **For Artifact Upload/Download (ALTERNATIVE)**:
+   **For Artifact Upload/Download (ALTERNATIVE)**:
 
-     1. Download artifacts from upstream build jobs using `actions/download-artifact@v4`
-     2. Place artifacts in correct location (use `artifact_destination_path` from mapping if available)
-     3. Verify artifacts exist before Terraform operations
-     4. Pass artifact paths to Terraform via environment variables
+   1. Download artifacts from upstream build jobs using `actions/download-artifact@v4`
+   2. Place artifacts in correct location (use `artifact_destination_path` from mapping if available)
+   3. Verify artifacts exist before Terraform operations
+   4. Pass artifact paths to Terraform via environment variables
 
-     **See**: `workflow-dependency-handling.mdc` for complete dependency handling patterns and code examples
+   **See**: `workflow-dependency-handling.md` for complete dependency handling patterns and code examples
 
-  3. Configure AWS credentials via OIDC (mandatory)
-  4. Configure Terraform Cloud (if applicable)
-  5. **Pass dependency artifacts to Terraform**:
-     - Set environment variables or Terraform variables with artifact paths/URLs
-     - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
-  6. **Plan Application**:
-     - If NOT using Terraform Cloud (`USE_TFC=false`): Download plan artifact from CI job and apply it
-     - If using Terraform Cloud (`USE_TFC=true`): Run `terraform plan` and `terraform apply -auto-approve` directly
-  7. Deploy to environment
+3. Configure AWS credentials via OIDC (mandatory)
+4. Configure Terraform Cloud (if applicable)
+5. **Pass dependency artifacts to Terraform**:
+   - Set environment variables or Terraform variables with artifact paths/URLs
+   - Example: `TF_VAR_lambda_package_path=./iac/terraform/lambda_function.zip`
+6. **Plan Application**:
+   - If NOT using Terraform Cloud (`USE_TFC=false`): Download plan artifact from CI job and apply it
+   - If using Terraform Cloud (`USE_TFC=true`): Run `terraform plan` and `terraform apply -auto-approve` directly
+7. Deploy to environment
 
 ## Job Naming Convention
 
@@ -230,19 +230,19 @@ For single production workflow, use these job names:
      ```
   2. **Dependency Handling Steps** (MANDATORY if Terraform depends on other code types):
 
-     - **CRITICAL**: Follow the dependency handling pattern from `workflow-dependency-handling.mdc`
+     - **CRITICAL**: Follow the dependency handling pattern from `workflow-dependency-handling.md`
      - **PREFERRED - Local Build Placement**: For Lambda functions and similar artifacts, the PREFERRED approach is to build artifacts directly in the location where Terraform expects them, eliminating the need for artifact upload/download:
        - **Python Lambda Example**: Build Lambda package directly in Terraform directory (e.g., `iac/terraform/lambda_function.zip`)
        - **Benefits**: Simpler workflow, no artifact upload/download, fewer path issues, Terraform deploys source directly
        - **Implementation**: Upstream build job (e.g., `python-build`) builds artifact directly in Terraform directory, Terraform deploy job uses it directly
-       - **See**: `workflow-dependency-handling.mdc` for local build placement patterns
+       - **See**: `workflow-dependency-handling.md` for local build placement patterns
      - **ALTERNATIVE - Artifact Upload/Download**: If local build placement is not feasible, use artifact upload/download:
        - **PREFERRED - Use Artifact Mapping**: If `.code-docs/artifact-mappings.json` exists:
          - Read mapping file to get exact artifact names (`artifact_name`) and destination paths (`artifact_destination_path`)
          - Use these values in dependency handling steps
        - **FALLBACK - Manual Detection**: If mapping file does not exist, use code analysis to determine artifact names and paths
 
-     **Required Steps** (see `workflow-dependency-handling.mdc` for complete examples):
+     **Required Steps** (see `workflow-dependency-handling.md` for complete examples):
 
      **For Local Build Placement (PREFERRED)**:
 
@@ -257,7 +257,7 @@ For single production workflow, use these job names:
      3. Verify artifacts exist before Terraform operations
      4. Pass artifact paths to Terraform via environment variables
 
-     **See**: `workflow-dependency-handling.mdc` for complete dependency handling patterns and code examples
+     **See**: `workflow-dependency-handling.md` for complete dependency handling patterns and code examples
 
   3. Configure AWS credentials via OIDC (mandatory)
   4. Configure Terraform Cloud (if applicable)
@@ -303,11 +303,11 @@ For single production workflow, use these job names:
     - **Python Lambda Example**: Build Lambda package in `iac/terraform/lambda_function.zip` during Python build job
     - **Benefits**: Terraform deploys Lambda source directly, no artifact upload/download needed, simpler workflow
     - **Implementation**: Upstream build job builds artifact in Terraform directory, Terraform deploy job uses it directly
-    - **See**: `workflow-dependency-handling.mdc` for local build placement patterns
+    - **See**: `workflow-dependency-handling.md` for local build placement patterns
   - **ALTERNATIVE - Artifact Upload/Download**: If local build placement is not feasible, use artifact upload/download:
-    - **Follow Dependency Pattern**: Implement dependency handling steps as documented in `workflow-dependency-handling.mdc`
+    - **Follow Dependency Pattern**: Implement dependency handling steps as documented in `workflow-dependency-handling.md`
     - **Artifact Passing**: Pass artifact paths/URLs to Terraform via environment variables or Terraform variables
 - **DO NOT SKIP**: Dependency handling steps are MANDATORY, not optional - they ensure Terraform has required artifacts
 - **Multiple Dependencies**: If Terraform depends on multiple code types, wait for all upstream build jobs via `needs:` array
 - **CRITICAL - Terraform Deploys Lambda Source**: When Terraform manages Lambda functions, Terraform itself should deploy the Lambda source code. The `source_code_hash` attribute in Terraform automatically detects changes to the zip file and updates the Lambda function code when `terraform apply` runs. This eliminates the need for separate Python deploy jobs that update Lambda function code.
-- **See**: `workflow-dependency-handling.mdc` for complete dependency handling patterns, code examples, and best practices
+- **See**: `workflow-dependency-handling.md` for complete dependency handling patterns, code examples, and best practices

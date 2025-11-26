@@ -110,7 +110,7 @@ jobs:
 
 **Note**: For single production workflow, all artifact passing happens within the same workflow. No cross-workflow downloads needed.
 
-**See Also**: `workflow-dependency-handling.mdc` for comprehensive dependency patterns
+**See Also**: `workflow-dependency-handling.md` for comprehensive dependency patterns
 
 ---
 
@@ -171,7 +171,7 @@ jobs:
 - `jobs`: Job definitions
 - Each job must have `runs-on`
 
-**Solution**: Ensure all required fields are present. See `phase2-generate-workflow.mdc` for workflow structure requirements.
+**Solution**: Ensure all required fields are present. See `phase2-generate-workflow.md` for workflow structure requirements.
 
 ---
 
@@ -202,7 +202,7 @@ jobs:
 - Missing `workflow_dispatch` for manual triggers
 - Using `workflow_run` triggers (not needed for single workflow)
 
-**Solution**: Follow exact syntax from `phase2-generate-workflow.mdc` workflow structure examples. Single production workflow triggers on `main` branch push only.
+**Solution**: Follow exact syntax from `phase2-generate-workflow.md` workflow structure examples. Single production workflow triggers on `main` branch push only.
 
 ---
 
@@ -215,4 +215,4 @@ jobs:
 - Verify artifact upload path matches download path
 - Check artifact name matches exactly (case-sensitive)
 - Ensure artifact was uploaded before download attempt
-- See `workflow-dependency-handling.mdc` for artifact passing patterns
+- See `workflow-dependency-handling.md` for artifact passing patterns

@@ -1,4 +1,3 @@
-
 # Workflow Linting Validation Procedures
 
 ## Purpose
@@ -10,7 +9,7 @@ Provide automated validation procedures to catch linting errors in generated Git
 Before generating workflow files, validate standards files:
 
 1. **Check Standards Files**:
-   - Read all `{code-type}-standards.mdc` files
+   - Read all `{code-type}-standards.md` files
    - Search for job-level `if:` patterns containing `hashFiles`
    - If found, fix standards file before proceeding
 
@@ -28,6 +27,7 @@ cat .github/workflows/ci-cd.yml
 ### Step 2: Check for hashFiles() at Job Level (BLOCKING CHECK)
 
 **Pattern to Detect**:
+
 - Job definition line: `^\s+[a-z-]+:\s*$`
 - Followed by `if:` at same indentation level as `runs-on:`
 - `if:` line contains `hashFiles`
@@ -45,25 +45,27 @@ grep -B 1 "if:.*hashFiles" .github/workflows/ci-cd.yml | grep -E "^\s+[a-z-]+:\s
 ### Step 3: Fix Job-Level hashFiles() Usage
 
 **Invalid Pattern**:
+
 ```yaml
 python-test:
-  if: ${{ hashFiles('tests/**') != '' }}  # ❌ INVALID
+  if: ${{ hashFiles('tests/**') != '' }} # ❌ INVALID
   runs-on: ubuntu-latest
   steps:
     - run: pytest
 ```
 
 **Valid Pattern**:
+
 ```yaml
 python-test:
   runs-on: ubuntu-latest
   steps:
     - uses: actions/checkout@v4
     - name: Install test dependencies
-      if: ${{ hashFiles('tests/**') != '' }}  # ✓ VALID
+      if: ${{ hashFiles('tests/**') != '' }} # ✓ VALID
       run: pip install pytest
     - name: Run tests
-      if: ${{ hashFiles('tests/**') != '' }}  # ✓ VALID
+      if: ${{ hashFiles('tests/**') != '' }} # ✓ VALID
       run: pytest tests/
 ```
 

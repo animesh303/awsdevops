@@ -551,4 +551,4 @@ steps:
 - **Job runs before dependency**: Verify `needs:` array includes all required upstream jobs
 - **Multiple dependencies**: Download all artifacts from their respective build jobs in the deploy job
 
-See `workflow-common-issues.mdc` for more troubleshooting guidance.
+See `workflow-common-issues.md` for more troubleshooting guidance.

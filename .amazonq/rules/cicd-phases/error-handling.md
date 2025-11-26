@@ -2,13 +2,13 @@
 
 ### Error: Standards File Missing
 
-**Scenario**: Detected code type has no corresponding standards file (e.g., `go-standards.mdc` not found for Go code).
+**Scenario**: Detected code type has no corresponding standards file (e.g., `go-standards.md` not found for Go code).
 
 **Response**:
 
 - Create standards file following pattern of existing standards files
 - Use language-appropriate CI/CD patterns
-- Document creation in plan: "Created {code-type}-standards.mdc"
+- Document creation in plan: "Created {code-type}-standards.md"
 - Proceed with workflow generation
 
 ### Error: Workflow Generation Fails
@@ -30,7 +30,7 @@
 **Response**:
 
 - **MANDATORY**: Fix all linting errors before proceeding
-- Use `workflow-common-issues.mdc` for troubleshooting
+- Use `workflow-common-issues.md` for troubleshooting
 - Validate fixes before continuing
 - Do not proceed to Phase 3 until all workflows pass validation
 
@@ -192,7 +192,7 @@
 
 **Procedure**:
 
-1. See `rollback-procedures.mdc` for detailed rollback scenarios and steps
+1. See `rollback-procedures.md` for detailed rollback scenarios and steps
 2. Follow appropriate rollback scenario based on current phase and commit status
 3. Log rollback in audit.md
 
