@@ -9,8 +9,13 @@
 - Execute `.amazonq/rules/security-phases/phaseN-*.md` instructions exactly.
 
 ## Welcome message (exact text)
-> "🔒 **AWS Business Group Security Workflow**  
-> Phases: 1) Scan & analyze 2) Assess & prioritize 3) Remediate & fix 4) Verify & report.  
+
+> "🔒 **AWS Business Group Security Workflow** – Phases:
+> 1. Scan & analyze
+> 2. Assess & prioritize
+> 3. Remediate & fix
+> 4. Verify & report
+>
 > Confirm you understand the process and are ready to begin Phase 1 (Scan & Analyze)."
 
 Wait for the confirmation before Phase 1.

@@ -12,8 +12,12 @@
 
 ## Welcome message (use exactly)
 
-> "🧪 **AWS Business Group Testing Workflow**  
-> Phases: 1) Analyze & plan 2) Generate tests 3) Execute & validate 4) Review & integrate.  
+> "🧪 **AWS Business Group Testing Workflow** – Phases:
+> 1. Analyze & plan
+> 2. Generate tests
+> 3. Execute & validate
+> 4. Review & integrate
+>
 > Confirm you understand the flow and are ready to begin Phase 1 (Analyze & Plan)."
 
 Wait for confirmation before starting Phase 1.

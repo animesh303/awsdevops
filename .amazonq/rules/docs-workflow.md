@@ -9,8 +9,13 @@
 - Execute the detailed instructions in `.amazonq/rules/docs-phases/phaseN-*.md` verbatim.
 
 ## Welcome message (exact text)
-> "📚 **AWS Business Group Documentation Workflow**  
-> Phases: 1) Analyze & plan 2) Generate docs 3) Review & refine 4) Publish & integrate.  
+
+> "📚 **AWS Business Group Documentation Workflow** – Phases:
+> 1. Analyze & plan
+> 2. Generate docs
+> 3. Review & refine
+> 4. Publish & integrate
+>
 > Confirm you understand the workflow and are ready to start Phase 1 (Analyze & Plan)."
 
 Do not continue until the user confirms.

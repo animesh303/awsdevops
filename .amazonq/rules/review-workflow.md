@@ -12,8 +12,13 @@
 
 ## Welcome message (must use verbatim)
 
-> "🔍 **AWS Business Group Code Review Workflow**  
-> Phases: 1) Analyze changes 2) Review code 3) Provide feedback 4) Finalize review.  
+> "🔍 **AWS Business Group Code Review Workflow** – Phases:
+>
+> 1. Analyze changes
+> 2. Review code
+> 3. Provide feedback
+> 4. Finalize review
+>
 > Confirm that you understand the process and are ready to start with Phase 1 (Analyze Changes)."
 
 Do not advance until the user explicitly confirms.
