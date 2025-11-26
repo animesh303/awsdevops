@@ -1,4 +1,0 @@
-# file: /Users/animeshnaskar/Projects/Accenture/genai-devops/lambda/concurrency_lock.py
-# hypothesis_version: 6.148.2
-
-['#ttl', ':lock_key', ':now', 'ClientError', 'Code', 'DYNAMODB_TABLE_NAME', 'Error', 'Items', 'Message', 'N', 'RequestId', 'ResponseMetadata', 'S', 'Unknown', 'Unknown error', 'Z', 'dynamodb', 'error_code', 'error_type', 'execution_id', 'execution_lock', 'lock_expiry', 'lock_timestamp', 'our_execution_id', 'request_id', 'scan_timestamp', 'stored_execution_id', 'ttl', 'user_name']

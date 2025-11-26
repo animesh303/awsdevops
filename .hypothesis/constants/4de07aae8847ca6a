@@ -1,4 +1,0 @@
-# file: /Users/animeshnaskar/Projects/Accenture/genai-devops/lambda/lambda_function.py
-# hypothesis_version: 6.148.2
-
-[0.0, 200, 500, 30000, '90', 'DYNAMODB_TABLE_NAME', 'INFO', 'LOG_LEVEL', 'RETENTION_DAYS', 'Z', 'duration_seconds', 'error', 'error_type', 'errors', 'function_name', 'log_level', 'message', 'records_written', 'remaining_time_ms', 'request_id', 'retention_days', 'scan_timestamp', 'statistics', 'status', 'statusCode', 'success', 'table_name', 'timeout_after_scan', 'timeout_before_scan', 'total_users', 'unknown']

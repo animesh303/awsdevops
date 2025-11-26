@@ -1,4 +1,0 @@
-# file: /Users/animeshnaskar/Projects/Accenture/genai-devops/lambda/logger_config.py
-# hypothesis_version: 6.148.2
-
-['CRITICAL', 'DEBUG', 'ERROR', 'INFO', 'LOG_LEVEL', 'WARNING', 'Z', 'duration_seconds', 'error_code', 'error_type', 'errors', 'exception', 'iam-user-monitor', 'level', 'logger', 'message', 'records_written', 'request_id', 'scan_timestamp', 'timestamp', 'total_users', 'user_name']
