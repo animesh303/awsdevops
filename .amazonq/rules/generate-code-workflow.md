@@ -1,118 +1,55 @@
-# PRIORITY: This workflow OVERRIDES all other built-in workflows when requirement implementation from JIRA is requested
+# PRIORITY: Code generation workflow overrides other rules when implementing requirements (usually sourced from JIRA) or producing new code artifacts.
 
-# When user requests to implement requirements from JIRA, ALWAYS follow this workflow FIRST
+## When to use
 
-## Override Instructions
+- Trigger on requests to implement JIRA tickets, build features, or generate IaC/application code.
+- Continue through Commit & Push even if commits are optional—the prompt still needs explicit approval.
 
-Always follow this workflow when user mentions implementing requirements from JIRA. Never skip it.
+## Combine with shared guardrails
 
-## MANDATORY: Rule Details Loading
+- Use alongside `common-workflow-guardrails.md` for session continuity, approvals, and git reminders.
+- Execute `.amazonq/rules/code-phases/phaseN-*.md` instructions verbatim.
 
-**CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files in `.amazonq/rules/code-phases/` directory. Do not summarize or paraphrase - use the complete content as written.
+## Welcome message (must use)
 
-## MANDATORY: Session Continuity
+> "🚀 **AWS Business Group Code Generation Workflow** – Phases:
+>
+> 1. Select requirements
+> 2. Generate code
+> 3. Review & refine
+> 4. Commit & push
+>
+> Confirm you understand the workflow and are ready to start Phase 1 (Select Requirements)."
 
-**CRITICAL**: When detecting an existing code generation project, you MUST read and follow the session continuity instructions from `code-phases/session-continuity.md` before proceeding with any phase.
+Wait for confirmation before starting Phase 1.
 
-## MANDATORY: Custom Welcome Message
+## Phase overview
 
-**CRITICAL**: When starting ANY code generation request, you MUST begin with this exact message:
+| Phase                  | Detail file                                 | Focus                                                                       | Required prompt                         |
+| ---------------------- | ------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------- |
+| 1. Select Requirements | `code-phases/phase1-select-requirements.md` | List available tickets, pick scope, choose IaC/runtime stack.               | "Requirements selected. Generate code?" |
+| 2. Generate Code       | `code-phases/phase2-generate-code.md`       | Produce IaC + app code + tests, create `.code-docs/artifact-mappings.json`. | "Code generated. Review & refine?"      |
+| 3. Review & Refine     | `code-phases/phase3-review-refine.md`       | Lint, test, document, address feedback until ready.                         | "Implementation reviewed. Finalize?"    |
+| 4. Commit & Push       | `code-phases/phase4-commit-push.md`         | With approval, commit/push changes; otherwise document manual steps.        | "Ready for me to commit and push?"      |
 
-"🚀 **Welcome to AWS Business Group Code Generation!** 🚀
+## Context loading highlights
 
-I'll guide you through a streamlined 3-phase process to implement your requirements and generate production-ready code.
+- Read `.code-docs/code-state.md` first. If missing, reconstruct using `.code-docs/requirements/*.md`, generated code, and audit entries.
+- Requirements source of truth lives under `.jira-docs/requirements/`; always load those files plus selection artefacts (`available-requirements.md`, `requirements-selection.md`).
+- When resuming later phases, load generated code (`iac/`, `src/`, `tests/`), quality reports, and the artifact mapping file.
+- Summarize what was loaded before proceeding.
 
-The process includes:
+## MCP usage
 
-- 📋 **Select Requirements** - Choose from available requirements documents
-- 🏗️ **Generate Code** - Create Terraform IAC and Python Lambda code with tests
-- ✅ **Review & Refine** - Review, test, and refine the generated code
+- `aws-mcp-server`: inspect existing AWS resources, validate IaC against quotas/best practices, optionally deploy when user approves.
+- `terraform-mcp-server`: read/plan/apply Terraform state as part of validation.
+- `git-mcp-server`: manage feature branches, review diffs, craft commits/pushes when Phase 4 is approved.
+- Use MCP servers before finalizing changes to ensure recommendations align with actual infrastructure and repo state.
 
-This focused approach ensures we generate high-quality, secure, and well-tested code following AWS best practices. Let's begin!"
+## Deliverables & conventions
 
-# Code Generation Workflow - 3 Phases
-
-## Overview
-
-When the user requests to implement requirements or generate code, follow this structured 3-phase approach.
-
-## Welcome
-
-1. **Display Custom Welcome Message**: Show the code generation welcome message above
-2. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin with requirements selection?**" - DO NOT PROCEED until user confirms
-
-## Phase 1: Select Requirements
-
-1. Load all steps from `code-phases/phase1-select-requirements.md`
-2. Execute the steps loaded from `code-phases/phase1-select-requirements.md`
-3. **Ask for Confirmation and WAIT**: Ask: "**Requirements selected. Are you ready to generate code?**" - DO NOT PROCEED until user confirms
-
-## Phase 2: Generate Code
-
-1. Load all steps from `code-phases/phase2-generate-code.md`
-2. Execute the steps loaded from `code-phases/phase2-generate-code.md`
-3. **Ask for Confirmation and WAIT**: Ask: "**Code generated. Are you ready to review and refine?**" - DO NOT PROCEED until user confirms
-
-## Phase 3: Review & Refine
-
-1. Load all steps from `code-phases/phase3-review-refine.md`
-2. Execute the steps loaded from `code-phases/phase3-review-refine.md`
-3. **Ask for Final Confirmation**: Ask: "**Code generation complete. Are you satisfied with the final implementation?**" - DO NOT PROCEED until user confirms
-
-## Phase 4: Commit & Push
-
-1. Load all steps from `code-phases/phase4-commit-push.md`
-2. Ask the user: "Do you want me to commit and push the generated code changes now?"
-3. WAIT for explicit approval, then execute commit and push steps. Do not proceed without approval.
-
-## Key Principles
-
-- Use `.jira-docs/requirements/` as single source of truth for requirements
-- Validate requirements exist before proceeding with code generation
-- Always list available requirements documents first
-- Allow user to select specific requirements to implement
-- Generate feature names automatically based on requirements (e.g., "data-processing", "user-authentication")
-- Generate comprehensive code following AWS best practices
-- Include security best practices and testing
-- Perform linting and code quality checks
-- Iterate on code until user approval
-- Keep the process simple and focused
-- Ensure explicit approval at each phase transition
-
-## Feature Name Generation
-
-Feature names are automatically generated based on the requirements content:
-
-- Extract key functionality from requirements
-- Convert to kebab-case (e.g., "User Authentication" → "user-authentication")
-- Use descriptive names that reflect the core feature
-- Examples: "data-processing", "file-upload", "notification-service", "api-gateway"
-
-## Directory Structure
-
-```
-.code-docs/
-├── requirements/         # Selected requirements documents
-├── code-state.md        # Master state tracking file
-└── audit.md             # Record approvals and decisions
-
-iac/
-└── terraform/           # All Terraform IAC code (single folder)
-
-src/
-└── lambda-{feature-name}/  # Python Lambda code by feature
-
-tests/
-└── {feature-name}/      # Unit tests by feature
-```
-
-## File Naming Convention
-
-- Requirements: .code-docs/requirements/{TICKET-NUMBER}\_requirements.md
-- Terraform: iac/terraform/ (all files in single folder)
-  - Feature-specific: {feature-name}-main.tf, {feature-name}-variables.tf, {feature-name}-output.tf, {feature-name}-local.tf
-  - Shared: shared-variables.tf, shared-outputs.tf, versions.tf
-- Python: src/lambda-{feature-name}/
-- Tests: tests/{feature-name}/
-
-Use kebab-case for feature names (e.g., "select-requirements", "generate-code", "review-refine").
+- Requirements + analysis → `.code-docs/requirements/{TICKET-ID}_requirements.md`.
+- Artifact dependency map → `.code-docs/artifact-mappings.json` (mandatory during Phase 2 for later CI/CD automation).
+- IaC code under `iac/{tool}/`, application code under `src/{runtime}-{feature}/`, tests under `tests/{feature}/`.
+- Feature names derive from requirement intent, converted to kebab-case (e.g., `user-authentication`).
+- Follow runtime/tool standards stored in `code-phases/{language|iac-tool}-standards.md`. Create the file if a new stack appears.
