@@ -1,86 +1,54 @@
-# PRIORITY: This workflow OVERRIDES all other built-in workflows when JIRA task management is requested
+# PRIORITY: Use this workflow whenever the user wants help with JIRA tickets, requirements intake, or JIRA updates. It overrides other workflows until completion.
 
-# When user requests JIRA task management, ALWAYS follow this workflow FIRST
+## Pair with shared guardrails
 
-## Override Instructions
+- Always combine this file with `common-workflow-guardrails.md` for session continuity, logging, approvals, and git reminders.
+- Execute detailed steps from `.amazonq/rules/jira-phases/phaseN-*.md` exactly as written.
 
-Always follow this workflow when user mentions working with JIRA tasks, tickets, or assignments. Never skip it.
+## Welcome message (verbatim)
 
-## MANDATORY: Rule Details Loading
+> "🎯 **AWS Business Group JIRA Task Workflow** – Phases:
+>
+> 1. Fetch & select tickets
+> 2. Generate requirements spec
+> 3. Final confirmation & JIRA update
+>
+> Confirm you understand the process and are ready to begin Phase 1 (ticket selection)."
 
-**CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files in `.amazonq/rules/jira-phases/` directory. Do not summarize or paraphrase - use the complete content as written.
+Wait for confirmation before Phase 1.
 
-## MANDATORY: Session Continuity
+## Phase overview
 
-**CRITICAL**: When detecting an existing JIRA task management project, you MUST read and follow the session continuity instructions from `jira-phases/session-continuity.md` before proceeding with any phase.
+| Phase                               | Detail file                                   | Output                                              | Notes                                                  |
+| ----------------------------------- | --------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| 1. Fetch & Select Tickets           | `jira-phases/phase1-fetch-select-tickets.md`  | Ticket inventory + selected ticket file.            | Phase file handles its own approval logging at step 5. |
+| 2. Generate Requirements            | `jira-phases/phase2-generate-requirements.md` | `{TICKET}_requirements.md` + clarified questions.   | Phase file manages approvals/questions at step 8.      |
+| 3. Final Confirmation & JIRA Update | `jira-phases/phase3-review-iterate.md`        | Approved requirements + JIRA status update summary. | Gather final confirmation before closing.              |
 
-## MANDATORY: Custom Welcome Message
+State updates remain “best effort”: update `.jira-docs/jira-state.md` after each phase, but artifacts are the source of truth if the file is missing.
 
-**CRITICAL**: When starting ANY JIRA task management request, you MUST begin with this exact message:
+## Context loading rules (hybrid model)
 
-"🎯 **Welcome to AWS Business Group JIRA Task Management!** 🎯
+1. Try to read `.jira-docs/jira-state.md` first.
+2. If missing/corrupted, infer progress from artifacts: ticket files → Phase 1 done, requirements file → Phase 2 done, audit entry with approval → Phase 3 done. Rebuild the state file immediately and log the reconstruction in `.jira-docs/audit.md`.
+3. Load artifacts incrementally per phase: tickets → requirements drafts → audit history. Summarize what you loaded before proceeding.
 
-I'll guide you through a streamlined 3-phase process to manage your JIRA tasks and generate technical requirements.
+## Logging & approvals
 
-The process includes:
+- Each phase file already specifies where to log prompts/responses; ensure all entries follow the ISO 8601 template in `common-workflow-guardrails.md`.
+- After every phase remind the user to commit artifacts (tickets, requirements, audit updates).
 
-- 📋 **Fetch & Select JIRA Tickets** - Retrieve and select from your open JIRA tickets
-- 📝 **Generate Requirements Spec** - Create detailed technical requirements document
-- ✅ **Review & Iterate** - Review and refine requirements until approved
+## Deliverables & structure
 
-This focused approach ensures we quickly generate comprehensive requirements for your selected JIRA task. Let's begin!"
+- `.jira-docs/tickets/ticket-{KEY}.md` for ticket summaries pulled from JIRA.
+- `.jira-docs/requirements/{KEY}_requirements.md` for the technical spec.
+- `.jira-docs/jira-state.md` for lightweight state (current phase + selected ticket).
+- `.jira-docs/audit.md` for approvals, clarifications, and state-rebuild notes.
+- Additional artifacts (question lists, decisions) live under `.jira-docs/` following kebab-case names.
 
-# JIRA Task Management Workflow - 3 Phases
+## Key principles
 
-## Overview
-
-When the user requests to work with JIRA tasks, follow this structured 3-phase approach.
-
-## Welcome
-
-1. **Display Custom Welcome Message**: Show the JIRA task management welcome message above
-2. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin with JIRA ticket selection?**" - DO NOT PROCEED until user confirms
-
-## Phase 1: Fetch & Select JIRA Tickets
-
-1. Load all steps from `jira-phases/phase1-fetch-select-tickets.md`
-2. Execute the steps loaded from `jira-phases/phase1-fetch-select-tickets.md`
-3. **Ask for Confirmation and WAIT**: Ask: "**JIRA ticket selected. Are you ready to generate technical requirements?**" - DO NOT PROCEED until user confirms
-
-## Phase 2: Generate Requirements Spec
-
-1. Load all steps from `jira-phases/phase2-generate-requirements.md`
-2. Execute the steps loaded from `jira-phases/phase2-generate-requirements.md`
-3. **Ask for Confirmation and WAIT**: Ask: "**Requirements generated. Are you ready to review and iterate?**" - DO NOT PROCEED until user confirms
-
-## Phase 3: Review & Iterate
-
-1. Load all steps from `jira-phases/phase3-review-iterate.md`
-2. Execute the steps loaded from `jira-phases/phase3-review-iterate.md`
-3. **Ask for Final Confirmation**: Ask: "**Requirements specification complete. Are you satisfied with the final requirements document?**" - DO NOT PROCEED until user confirms
-
-## Key Principles
-
-- Always fetch and display available JIRA tickets first
-- Allow user to select specific ticket to work on
-- Generate comprehensive technical requirements based on JIRA ticket details
-- Iterate on requirements until user approval
-- Keep the process simple and focused
-- Ensure explicit approval at each phase transition
-
-## Directory Structure
-
-```
-.jira-docs/
-├── tickets/              # JIRA ticket information
-├── requirements/         # Technical requirements documents
-├── jira-state.md        # Master state tracking file
-└── audit.md             # Record approvals and decisions
-```
-
-## File Naming Convention
-
-- JIRA Ticket Info: .jira-docs/tickets/ticket-{TICKET-NUMBER}.md
-- Requirements Spec: .jira-docs/requirements/{TICKET-NUMBER}\_requirements.md
-
-Use kebab-case for feature names (e.g., "fetch-select-tickets", "generate-requirements", "review-iterate").
+- Show available tickets first, let the user pick, and confirm selection before writing specs.
+- Requirements must be complete, testable, and aligned with the ticket’s acceptance criteria.
+- Iterate on open questions within Phase 2 until the user approves the spec.
+- Final confirmation (Phase 3) must capture readiness to update JIRA plus any follow-up tasks.

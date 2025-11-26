@@ -1,158 +1,68 @@
-# PRIORITY: Use this workflow to generate or regenerate GitHub Actions workflows for codebases
+# PRIORITY: This CI/CD workflow overrides all other rules whenever the user asks to create, update, or regenerate GitHub Actions workflows.
 
-# When CICD workflow generation or regeneration is requested, ALWAYS follow this workflow FIRST
+## Pair with shared guardrails
 
-## Override Instructions
+- Always read `common-workflow-guardrails.md` first for session detection, approvals, checkbox tracking, audit logging, and git reminders.
+- For implementation details execute `.amazonq/rules/cicd-phases/phaseN-*.md` files verbatim.
 
-Always follow this workflow when user mentions CICD GitHub workflow generation. Never skip it.
+## Welcome + regeneration
 
-## MANDATORY: Rule Details Loading
+1. If the user says “regenerate/refresh/update/recreate workflows,” delete `.cicd-docs/` and `.github/workflows/`, log the request in the new `.cicd-docs/audit.md`, then start at Phase 1.
+2. Otherwise read `.cicd-docs/cicd-state.md` (fallback `cicd-phases/cicd-state.md`) and follow `cicd-phases/session-continuity.md`.
+3. Send this message verbatim and wait for confirmation before Phase 1:
+   > "🚀 **AWS Business Group CI/CD Workflow Generation** – Phases:
+   >
+   > 1. Detect & plan
+   > 2. Generate workflow
+   > 3. Review & confirm
+   > 4. Commit & push
+   >
+   > Confirm you understand the process and are ready to begin Phase 1 (Detect & Plan)."
 
-**CRITICAL**: When performing any phase, you MUST read and use relevant content from rule detail files in `.amazonq/rules/cicd-phases/` directory. Do not summarize or paraphrase - use the complete content as written.
+## Phase summary
 
-## MANDATORY: Session Continuity
+| Phase                | Detail file                               | Output                                                         | Required prompt                                     |
+| -------------------- | ----------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------- |
+| 1. Detect & Plan     | `cicd-phases/phase1-detect-plan.md`       | Updated detection plan + code type inventory + dependency map. | "Detection & planning complete. Generate workflow?" |
+| 2. Generate Workflow | `cicd-phases/phase2-generate-workflow.md` | `.github/workflows/ci-cd.yml` plus plan/state updates.         | "Workflow generated. Review & confirm?"             |
+| 3. Review & Confirm  | `cicd-phases/phase3-review-confirm.md`    | Reviewed jobs, validation checklist, dependency notes.         | "Workflow reviewed. Approve integration?"           |
+| 4. Commit & Push     | `cicd-phases/phase4-commit-push.md`       | Commit/push (with approval) or manual handoff notes.           | "Ready for me to commit and push?"                  |
 
-**CRITICAL**: When detecting an existing CICD workflow generation project, you MUST read and follow the session continuity instructions from `cicd-phases/session-continuity.md` before proceeding with any phase.
+Plan checklists live in `.cicd-docs/detection-plan.md`, `workflow-generation-plan.md`, and `review-notes.md`. Update checkboxes immediately after completing each step; update `.cicd-docs/cicd-state.md` only after approvals.
 
-## MANDATORY: Custom Welcome Message
+## Context loading checklist
 
-**CRITICAL**: When starting ANY CICD workflow generation request, you MUST begin with this exact message:
+- Load `.cicd-docs/cicd-state.md`, prior plans, and audit entries at the start of every session.
+- Load `.code-docs/requirements/*.md` plus `.code-docs/artifact-mappings.json` to understand dependencies.
+- Inspect current `.github/workflows/*.yml` files before replacing them.
+- Summarize the artifacts you loaded before continuing.
 
-"🚀 **Welcome to AWS Business Group CICD Workflow Generation!** 🚀
+## Workflow contract
 
-I'll guide you through a streamlined 3-phase process to automatically generate and integrate context-aware CICD workflows for your project.
+- Produce exactly one workflow: `.github/workflows/ci-cd.yml` (kebab-case).
+- Triggers: `push` on `main` and `workflow_dispatch`.
+- For each detected code type add lint/scan/test → build → deploy jobs. Use `needs:` to enforce ordering; pass artifacts between jobs when dependencies exist (e.g., Terraform waits for Lambda package).
+- All deploy jobs use `environment: production`. No additional workflows or environments.
+- Validate YAML structure, `${{ }}` expressions, required permissions, and ensure the file passes `gh workflow lint`.
 
-The process includes:
+## MCP integration
 
-- 🔍 **Detect & Plan** – Identify project code types & environments, and plan workflow creation
-- 🏗️ **Generate Workflows** – Create modular, multi-environment GitHub Actions for Python and Terraform
-- ✅ **Review & Confirm** – Review workflows, scan steps, and finalize integration
+- `github-mcp-server`: inspect repo settings, secrets, existing workflows; trigger runs; post review comments or PR statuses.
+- `aws-mcp-server`: verify IAM roles, deployment targets, and environment readiness referenced in jobs.
+- `docker-mcp-server`: validate container build/push steps and registry credentials.
 
-This focused approach ensures your codebase is production-ready and follows AWS/Amazon code quality and security best practices across all supported environments. Let's begin!"
+## Dependency analysis
 
-## Welcome
+- Use requirements + artifact mapping files to build a dependency graph (e.g., Lambda build → Terraform deploy).
+- Reflect dependencies inside the single workflow via `needs:` or artifact downloads. Document the order in review summaries.
 
-1. **Display Custom Welcome Message**: Show the CICD welcome message above
-2. **Ask for Confirmation and WAIT**: Ask: "**Do you understand this process and are you ready to begin detection and planning?**" - DO NOT PROCEED until user confirms
+## Language-specific standards
 
-# Custom CICD Workflow Generation Process (4-Phase Modular)
+- Before generating jobs for any code type, read `cicd-phases/{code-type}-standards.md` (python, terraform, javascript, java, go, docker, kubernetes, cloudformation, cdk, etc.).
+- If a standards file is missing, create it following the existing style before writing workflow steps for that stack.
 
-## Overview
+## Required artifacts
 
-Follow this 4-phase approach. For each phase, load and execute detailed steps from the corresponding `.amazonq/rules/cicd-phases/` file:
-
----
-
-## Phase 1: Detect & Plan Workflows
-
-1. **Load all steps from `cicd-phases/phase1-detect-plan.md`**
-2. Execute steps to scan for code, identify environments, draft plan, and checkpoint user confirmation.
-3. **Ask for Confirmation and WAIT**: Ask: "Detection and planning complete. Are you ready to generate workflows?" - DO NOT PROCEED until user confirms
-4. **Ask for Confirmation and WAIT**: Ask: "Generation completed. Are you ready to push code to repository?" - DO NOT PROCEED until user confirms
-
----
-
-## Phase 2: Generate Workflow Files
-
-1. **Load all steps from `cicd-phases/phase2-generate-workflow.md`**
-2. Execute steps to render workflow YAML, match jobs to context, and checkpoint before review.
-3. **Ask for Confirmation and WAIT**: Ask: "Workflows generated. Are you ready to review and confirm?" - DO NOT PROCEED until user confirms
-
----
-
-## Phase 3: Review & Confirm
-
-1. **Load all steps from `cicd-phases/phase3-review-confirm.md`**
-2. Execute steps to review generated workflows, present details, and checkpoint before finalization.
-3. **Ask for Final Confirmation**: Ask: "CICD setup complete. Do you approve the final workflows for integration?" - DO NOT PROCEED until user confirms
-
----
-
-# Phase 4: Commit & Push
-
-1. **Load all steps from `cicd-phases/phase4-commit-push.md`**
-2. Execute steps to commit generated/updated workflow files and push to the repository, only after explicit user approval.
-3. **Ask for Confirmation and WAIT**: Ask: "Ready to commit and push the workflow changes to the repository?" - DO NOT PROCEED until user confirms
-
----
-
-# Key Workflow Requirements
-
-- Automatically detect Python and/or Terraform; generate only for detected environments.
-- All workflows must include:
-  - CI/CD best practices (lint, test, scan, artifact upload, etc.)
-  - Python: Flake8 SARIF, Bandit SARIF, optional pytest with coverage when `tests/` exists
-  - Terraform: validate/plan, tflint, Checkov SARIF, upload `plan` artifact
-  - SARIF upload using `github/codeql-action/upload-sarif@v3`
-- Modular, extensible and production-grade workflows.
-- Minimal, clear confirmation at each phase.
-
-## Python CI Guidance
-
-- Use a matrix for Python versions (3.10, 3.11, 3.12)
-- Cache dependencies where possible
-- Run tests deterministically when `tests/` exists (skip otherwise)
-- Security: add Bandit with SARIF
-
-## Terraform CI Guidance
-
-- Pin Terraform version and cache plugins
-- Run `init`, `validate`, and `plan`
-- Add `tflint` and `checkov` with SARIF
-- Upload plan as an artifact for review
-
-## Example: Flake8 SARIF
-
-```yaml
-- name: Run Flake8 (SARIF)
-  run: |
-    pip install flake8 flake8-sarif
-    flake8 . --format sarif --output-file flake8-results.sarif
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: flake8-results.sarif
-```
-
-## Example: Bandit SARIF
-
-```yaml
-- name: Run Bandit (SARIF)
-  run: |
-    pip install bandit bandit-sarif-formatter
-    bandit -r . -f sarif -o bandit-results.sarif || true
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: bandit-results.sarif
-```
-
-## Example: Checkov SARIF
-
-```yaml
-- name: Run Checkov (SARIF)
-  run: |
-    pip install checkov
-    checkov -d . --output-file-path results.sarif --output sarif
-- name: Upload SARIF
-  uses: github/codeql-action/upload-sarif@v3
-  with:
-    sarif_file: results.sarif
-```
-
-# Directory/File Naming
-
-- `.github/workflows/python-ci.yml`
-- `.github/workflows/terraform-ci.yml`
-- Use kebab-case, descriptive file names
-
-# Principles
-
-- Always generate ONLY for detected languages/envs
-- Ensure SARIF and code quality upload
-- Minimal, modular checkpoints across all phases
-
-# Session Continuity (Summary)
-
-- Always follow `cicd-phases/session-continuity.md` for detecting/resuming sessions
-- Prefer storing state and approvals under project docs: `.cicd-docs/cicd-state.md` and `.cicd-docs/audit.md` (fallback to legacy `.amazonq/rules/cicd-phases/cicd-state.md` if needed)
+- `.cicd-docs/` → `cicd-state.md`, `audit.md`, and all plan/checklist files (Phase 1–3). Keep them updated in-place.
+- `.github/workflows/ci-cd.yml` → final workflow file (single production pipeline).
+- Reference supporting docs (`workflow-dependency-handling.md`, `validation-checklist.md`, `error-handling.md`, `rollback-procedures.md`) instead of copying their content.

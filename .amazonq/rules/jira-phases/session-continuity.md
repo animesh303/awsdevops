@@ -6,13 +6,15 @@ When a user returns to continue work on an existing JIRA task management project
 
 **Welcome back! I can see you have an existing JIRA task management project in progress.**
 
-Based on your jira-state.md, here's your current status:
+Here's your current status:
 
 - **Selected Ticket**: [TICKET-NUMBER] - [TICKET-TITLE]
 - **Current Phase**: [Phase X: Phase Name]
 - **Requirements Status**: [Generated/In Review/Approved]
 - **Last Completed**: [Last completed step]
 - **Next Step**: [Next step to work on]
+
+> _Status detected from [state file | artifacts]_ (show which method was used)
 
 **What would you like to work on today?**
 
@@ -23,23 +25,57 @@ D) Start over with a new JIRA ticket
 
 Please select an option (A, B, C, or D):
 
-## MANDATORY: Session Continuity Instructions
+## MANDATORY: Session Continuity Instructions (Hybrid Approach)
 
-1. **Always read .jira-docs/jira-state.md first** when detecting existing JIRA project
-2. **Parse current status** from the workflow file to populate the prompt
-3. **MANDATORY: Load Previous Phase Artifacts** - Before resuming any phase, automatically read all relevant artifacts from previous phases:
+### Primary Path: State File Detection
+
+1. **Try to read .jira-docs/jira-state.md first** when detecting existing JIRA project
+2. **If state file exists and is valid**, use it for fast status detection
+3. **Parse current status** from state file to populate the welcome back prompt
+
+### Fallback Path: Artifact-Based Detection
+
+4. **If state file missing or corrupted**, detect phase from artifacts:
+   - Check `.jira-docs/tickets/ticket-{TICKET-NUMBER}.md` exists → Phase 1 complete
+   - Check `.jira-docs/requirements/{TICKET-NUMBER}_requirements.md` exists → Phase 2 complete
+   - Check `.jira-docs/audit.md` for final approval → Phase 3 complete
+     - **Format to look for**: Search for entries with pattern:
+       - `## Phase 3:` or `## Phase 3: Final Confirmation & JIRA Update`
+       - `**Status**: Approved` or `**Status**: Complete`
+       - `**Context**: Final approval` or `JIRA ticket updated`
+       - Look for most recent entry with Phase 3 context
+5. **Auto-heal**: If state file missing, reconstruct it from detected artifacts
+6. **Log reconstruction**: If state file was reconstructed, log it in audit.md
+
+### Mandatory Artifact Loading
+
+7. **MANDATORY: Load Previous Phase Artifacts** - Before resuming any phase, automatically read all relevant artifacts from previous phases:
    - **Phase 1 Artifacts**: Read ticket details, ticket selection, and extracted ticket info
    - **Phase 2 Artifacts**: Read requirements document and any generated specifications
    - **Phase 3 Artifacts**: Read updated requirements document and audit logs
-4. **Smart Context Loading by Phase**:
+8. **Smart Context Loading by Phase**:
    - **Phase 1**: Load available tickets and ticket selection files
    - **Phase 2**: Load ticket details + requirements template + any existing requirements
    - **Phase 3**: Load requirements document + audit logs + ticket details
-5. **Adapt options** based on current phase and ticket status
-6. **Show specific next steps** rather than generic descriptions
-7. **Log the continuity prompt** in .jira-docs/audit.md with timestamp
-8. **Context Summary**: After loading artifacts, provide brief summary of what was loaded for user awareness
-9. **Session Continuity Options**: ALWAYS present session continuity options directly in the chat session. DO NOT create separate files for user choices. Present the welcome back prompt with options A, B, C, D directly in chat and wait for user response.
+9. **Adapt options** based on current phase and ticket status
+10. **Show specific next steps** rather than generic descriptions
+11. **Log the continuity prompt** in .jira-docs/audit.md with timestamp
+12. **Context Summary**: After loading artifacts, provide brief summary of what was loaded for user awareness
+13. **Session Continuity Options**: ALWAYS present session continuity options directly in the chat session. DO NOT create separate files for user choices. Present the welcome back prompt with options A, B, C, D directly in chat and wait for user response.
+
+### State Reconstruction Logic
+
+When reconstructing state file from artifacts:
+
+1. **Determine current phase** from artifact existence:
+   - No ticket files → Phase 1 (not started)
+   - Ticket files exist, no requirements → Phase 1 complete, Phase 2 (not started)
+   - Requirements exist, no final approval in audit.md → Phase 2 complete, Phase 3 (in progress)
+   - Final approval in audit.md (pattern: `## Phase 3:` with `**Status**: Approved`) → All phases complete
+2. **Extract ticket number** from ticket file name or requirements file name
+3. **Extract ticket title** from ticket file or requirements file
+4. **Create minimal state file** with essential info only
+5. **Log reconstruction** in audit.md: "State file reconstructed from artifacts on [timestamp]"
 
 ## Session Continuity File Structure
 
@@ -118,7 +154,7 @@ Please select an option (A, B, C, or D):
 - Show generated requirements
 - Offer to proceed to Phase 3 or regenerate requirements
 
-### If Phase 3 In Progress
+### If Phase 3 In Progress (Final Confirmation & JIRA Update)
 
 - Show current requirements document
 - Show any pending feedback

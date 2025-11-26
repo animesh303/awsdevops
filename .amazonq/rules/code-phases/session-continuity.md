@@ -28,7 +28,7 @@ Please select an option (A, B, C, or D):
 1. **Always read .code-docs/code-state.md first** when detecting existing code generation project
 2. **Parse current status** from the workflow file to populate the prompt
 3. **MANDATORY: Load Previous Phase Artifacts** - Before resuming any phase, automatically read all relevant artifacts from previous phases:
-   - **Phase 1 Artifacts**: Read requirements selection and analysis
+   - **Phase 1 Artifacts**: Read requirements selection, analysis, and IAC tool/runtime selections
    - **Phase 2 Artifacts**: Read generated code and quality reports
    - **Phase 3 Artifacts**: Read updated code, documentation, and review feedback
 4. **Smart Context Loading by Phase**:
@@ -47,9 +47,9 @@ Please select an option (A, B, C, or D):
 
 - `.code-docs/code-state.md` - Master state tracking
 - `.code-docs/audit.md` - Approval and decision logs
-- `.code-docs/requirements/` - Requirements documents directory
-- `iac/terraform/` - All Terraform IAC code (single folder)
-- `src/lambda-*/` - Python Lambda code directories by feature
+- `.code-docs/requirements/` - Requirements documents directory (includes IAC tool and runtime selections)
+- `iac/{iac-tool}/` - IAC code by tool (terraform, cdk, cloudformation, pulumi, etc.)
+- `src/{runtime-type}-{feature-name}/` - Application code by runtime/type (lambda-python, lambda-nodejs, container-\*, etc.)
 
 ### Phase-Specific Artifact Loading
 
@@ -63,8 +63,9 @@ Please select an option (A, B, C, or D):
 #### Phase 2 Continuity
 
 - All Phase 1 artifacts PLUS:
-- `iac/terraform/` (all Terraform files in single folder)
-- `src/lambda-{feature-name}/` (all Python files by feature)
+- IAC tool and runtime selections from analysis document
+- `iac/{iac-tool}/` (all IAC files for selected tool)
+- `src/{runtime-type}-{feature-name}/` (all application code files by runtime)
 - `.code-docs/quality-reports/` (quality check results)
 
 #### Phase 3 Continuity
@@ -93,8 +94,10 @@ Please select an option (A, B, C, or D):
 **Context Loaded:**
 
 - Selected requirements: AWS-123 - "Create Lambda function for data processing"
-- Generated Terraform infrastructure code
-- Generated Python Lambda code
+- Selected IAC tool: [terraform/cdk/cloudformation/pulumi]
+- Selected runtime: [lambda-python/lambda-nodejs/etc.]
+- Generated IAC infrastructure code (using selected tool)
+- Generated application code (using selected runtime)
 - Quality reports
 - Security and best practices implementation
 ```
