@@ -1,0 +1,19 @@
+{
+  "ticket_id": "AWS-15",
+  "feature_name": "s3-lifecycle-demo",
+  "iac_tool": "terraform",
+  "iac_resources": [
+    {
+      "type": "aws_s3_bucket",
+      "name": "lifecycle_demo",
+      "description": "S3 bucket with lifecycle management"
+    },
+    {
+      "type": "aws_s3_bucket_lifecycle_configuration",
+      "name": "lifecycle_demo",
+      "description": "Lifecycle policy for storage class transitions and expiration"
+    }
+  ],
+  "application_artifacts": [],
+  "dependencies": []
+}
