@@ -1,19 +1,38 @@
 {
-  "ticket_id": "AWS-15",
-  "feature_name": "s3-lifecycle-demo",
+  "ticket_id": "AWS-17",
+  "feature_name": "s3-lambda-trigger",
   "iac_tool": "terraform",
-  "iac_resources": [
+  "runtime": "python3.12",
+  "artifacts": [
     {
-      "type": "aws_s3_bucket",
-      "name": "lifecycle_demo",
-      "description": "S3 bucket with lifecycle management"
-    },
-    {
-      "type": "aws_s3_bucket_lifecycle_configuration",
-      "name": "lifecycle_demo",
-      "description": "Lifecycle policy for storage class transitions and expiration"
+      "artifact_name": "lambda_function.zip",
+      "artifact_type": "lambda_package",
+      "artifact_source_path": "src/lambda-python-s3-trigger/",
+      "artifact_destination_path": "iac/terraform/lambda_function.zip",
+      "build_command": "cd src/lambda-python-s3-trigger && zip -r ../../iac/terraform/lambda_function.zip . -x '*.git*' '*.md' 'tests/*'",
+      "managed_by": "terraform"
     }
   ],
-  "application_artifacts": [],
-  "dependencies": []
+  "lambda_functions": [
+    {
+      "function_name": "s3-lambda-trigger-hello-world",
+      "runtime": "python3.12",
+      "handler": "lambda_handler.lambda_handler",
+      "source_path": "src/lambda-python-s3-trigger/",
+      "terraform_resource": "aws_lambda_function.s3_trigger",
+      "artifact_reference": "lambda_function.zip"
+    }
+  ],
+  "s3_buckets": [
+    {
+      "bucket_name_pattern": "s3-lambda-trigger-demo-*",
+      "terraform_resource": "aws_s3_bucket.trigger_bucket",
+      "event_notifications": [
+        {
+          "events": ["s3:ObjectCreated:*"],
+          "lambda_function": "s3-lambda-trigger-hello-world"
+        }
+      ]
+    }
+  ]
 }
