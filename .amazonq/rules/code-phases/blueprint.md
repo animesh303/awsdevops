@@ -21,6 +21,7 @@ Use this file as the single reference for all code-phases steps. The individual 
 1. Reload requirement + analysis docs, inspect existing code, and summarize context.
 2. Implement IaC following `code-phases/{iac-tool}-standards.md`, using MCP servers (`aws`, `terraform`) for discovery, validation, and tagging. Capture validation logs under `.code-docs/quality-reports/`.
 3. Implement application code/tests following `code-phases/{language}-standards.md`; include dependency manifests, environment configuration, and error handling.
+4. Create or update .gitignore at project root with appropriate files or folders.
 4. Build/update `.code-docs/artifact-mappings.json` so CI/CD knows how artifacts relate to IaC resources.
 5. Run linters, security scans, and tooling validations; store outputs in `quality-reports/`. Log the Phase‑2 prompt in `.code-docs/audit.md`, wait for approval, update `code-state.md`, and remind the user to commit artifacts.
 
