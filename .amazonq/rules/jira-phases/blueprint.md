@@ -24,8 +24,8 @@ Each `phaseX-*.md` file now points here to minimize context size. Use the suppor
 
 1. Analyze the ticket (details + extracted summary) for scope, dependencies, and missing info. Record ambiguities as questions.
 2. Draft the requirements doc using the standard template: functional/non-functional specs, technical stack, risks, acceptance criteria, and **Open Questions** list with the `[Answer]:` placeholders.
-3. Generate an AWS architecture diagram via `mcp_awsdac` when the ticket provides enough detail; embed the image reference in the requirements doc.
-4. Block progress until all **blocking** questions (critical gaps) have answers. Non-blocking questions can move to a “Future Clarifications” section if the user prefers.
+3. Generate an AWS architecture diagram via `aws-diagram-mcp-server` when the ticket provides enough detail; embed the image reference in the requirements doc.
+4. Block progress until all **blocking** questions (critical gaps) have answers. Non-blocking questions can move to a “Future Clarifications” section if the user prefers. Regenerate the architecture diagram via `aws-diagram-mcp-server`, if needed, based on the answers to the questions.
 5. After approval, create or update the Confluence page via Atlassian MCP, store the page ID/URL in state or the ticket file, and log everything in `.jira-docs/audit.md`.
 6. Remind the user to commit requirements artifacts (doc, diagram, updated state).
 
